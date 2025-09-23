@@ -2,10 +2,10 @@
     "company":
     {
         "name": "Рога и копыта",
-        "INN": "129741029322",
-        "account": "12309184024",
-        "correspondent_acc": "93029318292",
-        "BIK": "129031229",
+        "INN": 129741029322,
+        "account": 12309184024,
+        "correspondent_acc": 93029318292,
+        "BIK": 129031229,
         "type_of_property": "33333"
     }
 }

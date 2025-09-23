@@ -6,9 +6,9 @@ from src.models.Settings import Settings
 class SettingsManager:
     __instance = False
     __filename: str = ''
-    __model: CompanyModel = None
+    __settings: Settings = None
     __config_dict: dict
-    __attrs = Settings().attrs()
+    __attrs = Settings().company_attrs()
     
     def __init__(self, filename: str):
         self.__filename = filename
@@ -21,8 +21,8 @@ class SettingsManager:
         return cls.__model
 
     @property
-    def model(self) -> CompanyModel:
-        return self.__model
+    def settings(self) -> Settings:
+        return self.__settings
 
     @property
     def filename(self):
@@ -42,31 +42,33 @@ class SettingsManager:
         
         try:
             file = open(self.__filename)
-            self.__config_dict = json.load(file)['company']
-
+            global_config: dict = json.load(file)
+            if 'company' not in global_config:
+                return False
+            self.__config_dict = global_config['company']
             if len(self.__config_dict.keys()) == len(self.__attrs):
                 for key in self.__config_dict.keys():
                     if key not in self.__attrs:
                         return False
                 settings = self.convert_to_settings()
-                self.__model.settings = settings
+                self.__settings = settings
                 return True
             return False
         except:
+            print(11)
             return False
 
     def default(self):
-        self.__model = CompanyModel()
-        settings = Settings()
-        settings.name = "Рога и копыта"
-        self.__model.settings = settings 
+        self.__settings = Settings()
+        self.__settings.model = CompanyModel()
+        self.__settings.model.name = "Рога и копыта" 
     
     def convert_to_settings(self):
-        settings = Settings()
+        self.__settings = Settings()
         for item in self.__config_dict.keys():
             if item in self.__attrs:
-                setattr(settings, item, self.__config_dict[item])
-        return settings
+                setattr(self.__settings.model, item, self.__config_dict[item])
+        return self.__settings
         
 
         
