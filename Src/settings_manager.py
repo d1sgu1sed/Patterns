@@ -4,6 +4,16 @@ from Src.Models.company_model import company_model
 from Src.Models.settings_model import settings_model
 
 class settings_manager:
+    """
+    Загрузчик и контейнер конфигурации приложения.
+
+    Поля:
+        filename (str): Название файла для загрузки конфига.
+        settings (settings_model): загруженные настройки из файла
+    Предназначение:
+        - Загружает JSON и парсит его в settings.
+        - Предоставляет доступ к текущим настройкам.
+    """
     __instance = False
     __filename: str = ''
     __settings: settings_model = None
@@ -14,16 +24,25 @@ class settings_manager:
         self.__filename = filename
         self.default()
 
+    """
+    Реализация Singleton
+    """
     def __new__(cls, filename):
         if not cls.__instance:
             cls.__instance = True
             cls.__company = super(settings_manager, cls).__new__(cls)
         return cls.__company
 
+    """
+    settings (settings_model): загруженные настройки из файла
+    """
     @property
     def settings(self) -> settings_model:
         return self.__settings
 
+    """
+    filename (str): Название файла для загрузки конфига.
+    """
     @property
     def filename(self):
         return self.__filename
@@ -36,6 +55,9 @@ class settings_manager:
         if os.path.exists(value):
             self.__filename = value.strip()
 
+    """
+    Функция загрузки данных из указанного JSON файла
+    """
     def load(self):
         if self.__filename.strip() == '':
             raise FileNotFoundError('Не найден файл настроек')
@@ -58,11 +80,17 @@ class settings_manager:
             print(11)
             return False
 
+    """
+    Функция установки дефолтных значений
+    """
     def default(self):
         self.__settings = settings_model()
         self.__settings.company = company_model()
         self.__settings.company.name = "Рога и копыта" 
     
+    """
+    Функция конвертации из dict в settings_model
+    """
     def convert_to_settings(self):
         self.__settings = settings_model()
         for item in self.__config_dict.keys():

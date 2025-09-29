@@ -3,8 +3,17 @@ from Src.Core.validator import validator
 from Src.Core.abstract import abstract
 
 class settings_model:
+    """
+    Контейнер настроек приложения.
+    
+    Поля:
+        company (company_model): Настройки организации.
+    """
     __company: company_model = company_model()
 
+    """
+    company (company_model): Настройки организации.
+    """
     @property
     def company(self):
         return self.__company

@@ -4,6 +4,15 @@ from Src.Models.nomenclature_group_model import nomenclature_group_model
 from Src.Models.measure_model import measure_model
 
 class nomenclature_model(abstract):
+    """
+    Модель номенклатура.
+    
+    Поля:
+        full_name (str): Полное наименование, до 255 символов.
+        group (nomenclature_group_model): Группа, к которой относится продукт.
+        measure (measure_model): Единица измерения.
+    """
+
     __full_name: str
     __group: nomenclature_group_model
     __measure: measure_model
@@ -15,14 +24,23 @@ class nomenclature_model(abstract):
         self.__group = group
         self.__measure = measure
 
+    """
+    full_name (str): Полное наименование, до 255 символов 
+    """
     @property
     def full_name(self) -> str:
         return self.__full_name
     
+    """
+    group (nomenclature_group_model): Группа, к которой относится продукт.
+    """
     @property
     def group(self) -> nomenclature_group_model:
         return self.__group
     
+    """
+    measure (measure_model): Единица измерения.
+    """
     @property
     def measure(self) -> measure_model:
         return self.__measure

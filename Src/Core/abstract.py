@@ -11,6 +11,13 @@ class type_exception(Exception):
     pass  
 
 class abstract(abc.ABC):
+    """
+    Абстрактная модель, содержит ID и имя.
+
+    Поля:
+        unique_code (str): Уникальный ID-код модели.
+        name (str): Имя (не больше 50 симв).
+    """
     __unique_code:str
     __name: str
 
