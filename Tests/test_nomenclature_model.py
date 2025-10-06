@@ -21,6 +21,21 @@ class Test_nomenclature_model(unittest.TestCase):
         assert nomenclature.name == "товары"
         assert nomenclature.measure.name == 'гр.'
         assert nomenclature.group.name == ''
+    
+    """
+    Проверка работы фабричного метода на примере сахара
+    """
+    def test_create_sugar(self):
+        # подготовка
+        sugar = nomenclature_model.create_sugar()
+        sugar2 = nomenclature_model.create_sugar()
+        # действие
+
+        # проверка
+        assert sugar.measure == measure_model.create_gr()
+        assert sugar == sugar2
+        assert sugar.name == 'Сахар'
+        assert sugar.group == nomenclature_group_model.create_grocery()
 
 
 if __name__ == 'name':

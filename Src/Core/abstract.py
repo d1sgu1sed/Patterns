@@ -21,6 +21,7 @@ class abstract(abc.ABC):
     __unique_code:str
     __name: str
 
+    @abc.abstractmethod
     def __init__(self, name: str = "") -> None:
         super().__init__()
         self.__unique_code = uuid.uuid4().hex
