@@ -71,6 +71,12 @@ class start_service:
         # Ванилин
         self.__reposity.data[nomenclature]['Ванилин'] = \
             nomenclature_model.create('Ванилин', groups['Пищевые добавки'], measures['гр'])
+        # Молоко
+        self.__reposity.data[nomenclature]['Молоко'] = \
+            nomenclature_model.create('Молоко', groups['Животного происхождения'], measures['мл'])
+        # Соль
+        self.__reposity.data[nomenclature]['Соль'] = \
+            nomenclature_model.create('Соль', groups['Пищевые добавки'], measures['гр'])
     
     def create_default_ingredients(self):
         ingredients = reposity.ingredients_key
@@ -91,6 +97,12 @@ class start_service:
         # Ванилин
         self.__reposity.data[ingredients]['Ванилин'] = \
             ingredient_model.create(nomenclature['Ванилин'], 5)
+        # Молоко
+        self.__reposity.data[ingredients]['Молоко'] = \
+            ingredient_model.create(nomenclature['Молоко'], 500)
+        # Соль
+        self.__reposity.data[ingredients]['Соль'] = \
+            ingredient_model.create(nomenclature['Соль'], 5)
 
     def create_default_receipt_steps(self):
         steps_key = reposity.recipies_steps_key
@@ -133,11 +145,85 @@ class start_service:
 
         self.__reposity.data[steps_key]['Вафли'] = steps
         
+    def create_pancakes_steps(self):
+        """Создание шагов для рецепта блинов"""
+        steps_key = reposity.recipies_steps_key
+        
+        # Шаги для блинов
+        pancakes_steps = []
+        
+        pancakes_steps.append(recipe_step_model.create(
+            'Подготовьте все ингредиенты для блинов. У вас получится около {count} тонких блинов.',
+            {'count': 12}
+        ))
+
+        pancakes_steps.append(recipe_step_model.create(
+            'В глубокой миске смешайте муку, сахар и соль.'
+        ))
+
+        pancakes_steps.append(recipe_step_model.create(
+            'В другой миске взбейте яйца с молоком до однородной массы.'
+        ))
+
+        pancakes_steps.append(recipe_step_model.create(
+            'Постепенно вливайте яично-молочную смесь в мучную, постоянно помешивая венчиком.'
+        ))
+
+        pancakes_steps.append(recipe_step_model.create(
+            'Добавьте растопленное сливочное масло и ванилин. Тщательно перемешайте тесто.'
+        ))
+
+        pancakes_steps.append(recipe_step_model.create(
+            'Тесто должно получиться жидким, как жирные сливки. Оставьте его на {minutes} минут.',
+            {'minutes': 15}
+        ))
+
+        pancakes_steps.append(recipe_step_model.create(
+            'Разогрейте сковороду на среднем огне. Слегка смажьте ее маслом.'
+        ))
+
+        pancakes_steps.append(recipe_step_model.create(
+            'Выливайте тесто половником на горячую сковороду и распределяйте тонким слоем.'
+        ))
+
+        pancakes_steps.append(recipe_step_model.create(
+            'Жарьте блин около {time} секунд с одной стороны до золотистого цвета, затем переверните.',
+            {'time': 40}
+        ))
+
+        pancakes_steps.append(recipe_step_model.create(
+            'Подавайте блины горячими с вареньем, медом или сметаной.'
+        ))
+
+        self.__reposity.data[steps_key]['Блины'] = pancakes_steps
+        
+    def create_pancakes_receipt(self):
+        """Создание рецепта блинов"""
+        recipies_key = reposity.recipies_key
+        steps_key = reposity.recipies_steps_key
+        ingredients_key = reposity.ingredients_key
+
+        # Рецепт блинов
+        pancakes_name = 'Тонкие блины на молоке'
+        pancakes_steps = self.__reposity.data[steps_key]['Блины']
+        pancakes_ingredients = [
+            self.__reposity.data[ingredients_key]['Мука пшеничная'],
+            self.__reposity.data[ingredients_key]['Молоко'],
+            self.__reposity.data[ingredients_key]['Яйцо куриное'],
+            self.__reposity.data[ingredients_key]['Сахар'],
+            self.__reposity.data[ingredients_key]['Сливочное масло'],
+            self.__reposity.data[ingredients_key]['Соль'],
+            self.__reposity.data[ingredients_key]['Ванилин']
+        ]
+        pancakes_remark = '12 порций. Время приготовления - 30 мин. Идеальный завтрак для всей семьи!'
+        self.__reposity.data[recipies_key]['Блины'] = recipe_model.create(pancakes_name, pancakes_steps, pancakes_ingredients, pancakes_remark)
+        
     def create_default_receipt(self):
         recipies_key = reposity.recipies_key
         steps_key = reposity.recipies_steps_key
         ingredients_key = reposity.ingredients_key
 
+        # Рецепт вафель
         name = 'Вафли хрустящие в вафельнице'
         steps = self.__reposity.data[steps_key]['Вафли']
         ingredients = [
@@ -157,3 +243,5 @@ class start_service:
         self.create_default_ingredients()
         self.create_default_receipt_steps()
         self.create_default_receipt()
+        self.create_pancakes_steps()
+        self.create_pancakes_receipt()
