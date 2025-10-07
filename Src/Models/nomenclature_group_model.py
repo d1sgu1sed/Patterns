@@ -15,18 +15,6 @@ class nomenclature_group_model(abstract):
         super().__init__(name)
 
     @staticmethod
-    def create_animal_product():
-        return nomenclature_group_model.create('Животного происхождения')
-    
-    @staticmethod
-    def create_grocery():
-        return nomenclature_group_model.create('Бакалея')
-    
-    @staticmethod
-    def create_supplements():
-        return nomenclature_group_model.create('Пищевые добавки')
-
-    @staticmethod
     def create(name: str):
         validator.validate(name, str, 50)
         if name in nomenclature_group_model._instances.keys():

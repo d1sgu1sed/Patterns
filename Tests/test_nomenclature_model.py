@@ -27,15 +27,15 @@ class Test_nomenclature_model(unittest.TestCase):
     """
     def test_create_sugar(self):
         # подготовка
-        sugar = nomenclature_model.create_sugar()
-        sugar2 = nomenclature_model.create_sugar()
+        sugar = nomenclature_model.create('Сахар', nomenclature_group_model.create('Бакалея'), measure_model.create_gr())
+        sugar2 = nomenclature_model.create('Сахар', nomenclature_group_model.create('Бакалея'), measure_model.create_gr())
         # действие
 
         # проверка
         assert sugar.measure == measure_model.create_gr()
         assert sugar == sugar2
         assert sugar.name == 'Сахар'
-        assert sugar.group == nomenclature_group_model.create_grocery()
+        assert sugar.group == nomenclature_group_model.create('Бакалея')
 
 
 if __name__ == 'name':

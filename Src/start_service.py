@@ -40,35 +40,37 @@ class start_service:
 
     def default_create_groups(self):
         groups = reposity.groups_key
-
+        
         # Животного происхождения
         self.__reposity.data[groups]['Животного происхождения'] = \
-            nomenclature_group_model.create_animal_product()
+            nomenclature_group_model.create('Животного происхождения')
         # Бакалея
         self.__reposity.data[groups]['Бакалея'] = \
-            nomenclature_group_model.create_grocery()
+            nomenclature_group_model.create('Бакалея')
         # Пищевые добавки
         self.__reposity.data[groups]['Пищевые добавки'] = \
-            nomenclature_group_model.create_supplements()
+            nomenclature_group_model.create('Пищевые добавки')
     
     def default_create_nomenclature(self):
         nomenclature = reposity.nomenclature_key
+        groups = self.__reposity.data[reposity.groups_key]
+        measures = self.__reposity.data[reposity.measure_key]
         
         # Сахар
         self.__reposity.data[nomenclature]['Сахар'] = \
-            nomenclature_model.create_sugar()
+            nomenclature_model.create('Сахар', groups['Бакалея'], measures['гр'])
         # Масло
         self.__reposity.data[nomenclature]['Сливочное масло'] = \
-            nomenclature_model.create_butter()
+            nomenclature_model.create('Сливочное масло', groups['Животного происхождения'], measures['гр'])
         # Яйца
         self.__reposity.data[nomenclature]['Яйцо куриное'] = \
-            nomenclature_model.create_egg()
+            nomenclature_model.create('Яйцо куриное', groups['Животного происхождения'], measures['шт'])
         # Мука
         self.__reposity.data[nomenclature]['Мука пшеничная'] = \
-            nomenclature_model.create_flour()
+            nomenclature_model.create('Мука пшеничная', groups['Бакалея'], measures['гр'])
         # Ванилин
         self.__reposity.data[nomenclature]['Ванилин'] = \
-            nomenclature_model.create_vanilin()
+            nomenclature_model.create('Ванилин', groups['Пищевые добавки'], measures['гр'])
     
     def create_default_ingredients(self):
         ingredients = reposity.ingredients_key

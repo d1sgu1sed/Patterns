@@ -67,6 +67,9 @@ class markdown_recipe_manager:
         validator.validate(value, recipe_model)
         self.__recipe = value
     
+    """
+    Фабричный метод создания
+    """
     @staticmethod
     def create(filename: str, recipe: recipe_model):
         validator.validate(filename, str)

@@ -61,41 +61,6 @@ class nomenclature_model(abstract):
         validator.validate(value, measure_model)
         self.__measure = value
 
-    @staticmethod
-    def create_sugar():
-        name = 'Сахар'
-        group = nomenclature_group_model.create_grocery()
-        measure = measure_model.create_gr()
-        return nomenclature_model.create(name, group, measure)
-    
-    @staticmethod
-    def create_butter():
-        name = 'Сливочное масло'
-        group = nomenclature_group_model.create_animal_product()
-        measure = measure_model.create_gr()
-        return nomenclature_model.create(name, group, measure)
-    
-    @staticmethod
-    def create_egg():
-        name = 'Яйцо куриное'
-        group = nomenclature_group_model.create_animal_product()
-        measure = measure_model.create_pcs()
-        return nomenclature_model.create(name, group, measure)
-    
-    @staticmethod
-    def create_flour():
-        name = 'Мука пшеничная'
-        group = nomenclature_group_model.create_grocery()
-        measure = measure_model.create_gr()
-        return nomenclature_model.create(name, group, measure)
-    
-    @staticmethod
-    def create_vanilin():
-        name = 'Ванилин'
-        group = nomenclature_group_model.create_supplements()
-        measure = measure_model.create_gr()
-        return nomenclature_model.create(name, group, measure)
-
     """
     Фабричный метод создания номенклатуры
     """
