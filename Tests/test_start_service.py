@@ -1,6 +1,7 @@
 import unittest
 from Src.start_service import start_service
 from Src.reposity import reposity
+from Src.Models.measure_model import measure_model
 
 class Test_start_service(unittest.TestCase):
     __start_service = start_service()
@@ -20,9 +21,26 @@ class Test_start_service(unittest.TestCase):
 
         # проверка
         assert len(data[reposity.measure_key].keys()) != 0
+        assert data[reposity.groups_key]['Животного происхождения'] is not None
+
+    """
+    Проверка равенства созданных базовых единиц
+    """
+    def test_equal_instances(self):
+        # подготовка
+        data = self.__start_service.reposity.data
+        
+        # действие
+
+        # проверка
         assert data[reposity.measure_key]['гр'] is data[reposity.measure_key]['кг'].base_measure
         assert data[reposity.measure_key]['л'] is data[reposity.measure_key]['мл'].base_measure
-        assert data[reposity.groups_key]['Животного происхождения'] is not None
+        assert data[reposity.measure_key]['шт'] is measure_model.create_pcs() 
+        assert data[reposity.measure_key]['л'] is measure_model.create_l() 
+        assert data[reposity.measure_key]['гр'] is measure_model.create_gr() 
+        
+        assert measure_model.create_l() is measure_model.create_l()
+        assert measure_model.create_gr() is measure_model.create_gr()
 
 
 

@@ -3,6 +3,13 @@ from Src.Core.abstract import abstract
 from Src.Models.nomenclature_model import nomenclature_model
 
 class ingredient_model(abstract):
+    """
+    Модель ингриедента для рецепта
+
+    Поля:
+        product (nomenclature_model): Продукт из номенклатуры.
+        amount (float): Количество продукта
+    """
     __amount: float
     __product: nomenclature_model
     _instances = {}
@@ -14,10 +21,16 @@ class ingredient_model(abstract):
         self.__amount = float(amount)
         self.__product = product 
     
+    """
+    Продукт
+    """
     @property
     def product(self):
         return self.__product
     
+    """
+    Количество продукта
+    """
     @property
     def amount(self):
         return self.__amount
@@ -31,26 +44,9 @@ class ingredient_model(abstract):
         validator.validate(value, float|int)
         self.__amount = float(value)
 
-    @staticmethod
-    def create_sugar(amount: float|int):
-        return ingredient_model.create(nomenclature_model.create_sugar(), amount)
-    
-    @staticmethod
-    def create_butter(amount: float|int):
-        return ingredient_model.create(nomenclature_model.create_butter(), amount)
-    
-    @staticmethod
-    def create_flour(amount: float|int):
-        return ingredient_model.create(nomenclature_model.create_flour(), amount)
-    
-    @staticmethod
-    def create_egg(amount: float|int):
-        return ingredient_model.create(nomenclature_model.create_egg(), amount)
-    
-    @staticmethod
-    def create_vanilin(amount: float|int):
-        return ingredient_model.create(nomenclature_model.create_vanilin(), amount)
-
+    """
+    Фабричный метод для создания
+    """
     @staticmethod
     def create(nomenclature: nomenclature_model, amount: float|int):
         validator.validate(nomenclature, nomenclature_model)
