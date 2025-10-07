@@ -1,6 +1,5 @@
 from Src.Models.company_model import company_model
 from Src.Core.validator import validator
-from Src.Core.abstract import abstract
 
 class settings_model:
     """

@@ -19,6 +19,12 @@ class company_model(abstract):
     __type_of_property: str
 
     """
+    Наследование функции инициализации
+    """
+    def __init__(self, name = ""):
+        super().__init__(name)
+
+    """
     INN (int): ИНН, строго 12 цифр.
     """
     @property

@@ -16,6 +16,7 @@ class nomenclature_model(abstract):
     __full_name: str
     __group: nomenclature_group_model
     __measure: measure_model
+    _instances = {}
 
     def __init__(self, name: str, group: nomenclature_group_model, measure: measure_model):
         super().__init__(name)
@@ -59,3 +60,15 @@ class nomenclature_model(abstract):
     def measure(self, value: measure_model):
         validator.validate(value, measure_model)
         self.__measure = value
+
+    """
+    Фабричный метод создания номенклатуры
+    """
+    @staticmethod
+    def create(name: str, group: nomenclature_group_model, measure: measure_model):
+        validator.validate(name, str, 50)
+        if name in nomenclature_model._instances.keys():
+            return nomenclature_model._instances[name]
+        item = nomenclature_model(name, group, measure)
+        nomenclature_model._instances[name] = item
+        return item

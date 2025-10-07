@@ -11,8 +11,9 @@ class measure_model(abstract):
     """
     __base_measure = None
     __coef: float
+    _instances = {}
 
-    def __init__(self, name: str, coef: float | int, base_measure = None):
+    def __init__(self, name: str, coef: float | int = 1, base_measure = None):
         super().__init__(name)
         if base_measure is not None:
             validator.validate(base_measure, measure_model)
@@ -40,7 +41,43 @@ class measure_model(abstract):
         self.__coef = float(value)
     
     @base_measure.setter
-    def base_measure(self, value:str):
-        validator.validate(value, str, 50)
+    def base_measure(self, value):
+        validator.validate(value, measure_model)
         self.__base_measure = value
     
+    @staticmethod
+    def create_kg():
+        base_gr = measure_model.create_gr()
+        return measure_model.create('килограмм', base_gr, 1000)
+
+    @staticmethod
+    def create_gr():
+        return measure_model.create('грамм')
+    
+    @staticmethod
+    def create_pcs():
+        return measure_model.create('штука')
+    
+    @staticmethod
+    def create_l():
+        return measure_model.create('литр')
+    
+    @staticmethod
+    def create_ml():
+        base_l = measure_model.create_l()
+        return measure_model.create('миллилитр', base_l, 0.001)
+
+    @staticmethod
+    def create(name: str, base = None, coef: float | int = 1):
+        if name in measure_model._instances.keys():
+            return measure_model._instances[name]
+        inner_base = None
+        item = measure_model(name)
+        if base is not None:
+            validator.validate(base, measure_model)
+            inner_base = base
+            item.base_measure = inner_base
+        item.coef = coef
+        measure_model._instances[name] = item
+        return item
+        
