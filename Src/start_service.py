@@ -1,3 +1,10 @@
+import json
+import os
+from Dtos.ingredient_dto import ingredient_dto
+from Dtos.measure_dto import measure_dto
+from Dtos.nomenclature_group_dto import nomenclature_group_dto
+from Dtos.nomeclature_dto import nomenclature_dto
+from Src.Core.validator import argument_exception, operation_exception, validator
 from Src.reposity import reposity
 from Src.Models.measure_model import measure_model
 from Src.Models.nomenclature_group_model import nomenclature_group_model
@@ -9,14 +16,12 @@ from Src.Models.recipe_step_model import recipe_step_model
 class start_service:
     __reposity: reposity = reposity()
     __instance = None
+    __default_recipe: recipe_model
+    __filename: str = ""
+    __cache = {}
 
     def __init__(self):
-        self.__reposity.data[reposity.measure_key] = {}
-        self.__reposity.data[reposity.groups_key] = {}
-        self.__reposity.data[reposity.nomenclature_key] = {}
-        self.__reposity.data[reposity.recipies_steps_key] = {}
-        self.__reposity.data[reposity.ingredients_key] = {}
-        self.__reposity.data[reposity.recipies_key] = {}
+        self.__reposity.initalize()
 
     """
     Реализация Singleton
@@ -26,222 +31,152 @@ class start_service:
             cls.__instance = super(start_service, cls).__new__(cls)
         return cls.__instance
     
+    """
+    Хранилище
+    """
     @property
     def reposity(self):
         return self.__reposity
     
-    def default_create_measure(self):
-        measures = reposity.measure_key
-        self.__reposity.data[measures]['гр'] = measure_model.create_gr()
-        self.__reposity.data[measures]['кг'] = measure_model.create_kg()
-        self.__reposity.data[measures]['шт'] = measure_model.create_pcs()
-        self.__reposity.data[measures]['л'] = measure_model.create_l()
-        self.__reposity.data[measures]['мл'] = measure_model.create_ml()
+    """
+    Название файла
+    """
+    @property
+    def filename(self) -> str:
+        return self.__filename
 
-    def default_create_groups(self):
-        groups = reposity.groups_key
+    """
+    Полный путь к файлу настроек
+    """
+    @filename.setter
+    def filename(self, value:str):
+        validator.validate(value, str)
+        full_filename = os.path.abspath(value)        
+        if os.path.exists(full_filename):
+            self.__filename = full_filename.strip()
+        else:
+            raise argument_exception(f'Не найден файл настроек {full_filename}')
         
-        # Животного происхождения
-        self.__reposity.data[groups]['Животного происхождения'] = \
-            nomenclature_group_model.create('Животного происхождения')
-        # Бакалея
-        self.__reposity.data[groups]['Бакалея'] = \
-            nomenclature_group_model.create('Бакалея')
-        # Пищевые добавки
-        self.__reposity.data[groups]['Пищевые добавки'] = \
-            nomenclature_group_model.create('Пищевые добавки')
+    """
+    Функция загрузки рецепта из файла
+    """
+    def load(self) -> bool:
+        if self.__filename == "":
+            raise operation_exception("Не найден файл настроек!")
+
+        try:
+            with open(self.__filename, 'r') as file_instance:
+                settings = json.load(file_instance)
+
+                if "default_receipt" in settings.keys():
+                    data = settings["default_receipt"]
+                    return self.convert(data)
+
+            return False
+        except Exception as e:
+            error_message = str(e)
+            return False
     
-    def default_create_nomenclature(self):
-        nomenclature = reposity.nomenclature_key
-        groups = self.__reposity.data[reposity.groups_key]
-        measures = self.__reposity.data[reposity.measure_key]
-        
-        # Сахар
-        self.__reposity.data[nomenclature]['Сахар'] = \
-            nomenclature_model.create('Сахар', groups['Бакалея'], measures['гр'])
-        # Масло
-        self.__reposity.data[nomenclature]['Сливочное масло'] = \
-            nomenclature_model.create('Сливочное масло', groups['Животного происхождения'], measures['гр'])
-        # Яйца
-        self.__reposity.data[nomenclature]['Яйцо куриное'] = \
-            nomenclature_model.create('Яйцо куриное', groups['Животного происхождения'], measures['шт'])
-        # Мука
-        self.__reposity.data[nomenclature]['Мука пшеничная'] = \
-            nomenclature_model.create('Мука пшеничная', groups['Бакалея'], measures['гр'])
-        # Ванилин
-        self.__reposity.data[nomenclature]['Ванилин'] = \
-            nomenclature_model.create('Ванилин', groups['Пищевые добавки'], measures['гр'])
-        # Молоко
-        self.__reposity.data[nomenclature]['Молоко'] = \
-            nomenclature_model.create('Молоко', groups['Животного происхождения'], measures['мл'])
-        # Соль
-        self.__reposity.data[nomenclature]['Соль'] = \
-            nomenclature_model.create('Соль', groups['Пищевые добавки'], measures['гр'])
+    # Загрузить единицы измерений   
+    def __convert_measures(self, data: dict) -> bool:
+        validator.validate(data, dict)
+        ranges = data.get('measures', [])
+        if len(ranges) == 0:
+            return False
+         
+        for range in ranges:
+            dto = measure_dto().create(range)
+            item = measure_model.from_dto(dto, self.__cache)
+            self.__save_item(reposity.measure_key(), dto, item)
+
+        return True
+
+    # Загрузить группы номенклатуры
+    def __convert_groups(self, data: dict) -> bool:
+        validator.validate(data, dict)
+        nomenclature_groups = data.get('nomenclature_groups', [])
+        if len(nomenclature_groups) == 0:
+            return False
+
+        for groups in nomenclature_groups:
+            dto = nomenclature_group_dto().create(groups)    
+            item = nomenclature_group_model.from_dto(dto, self.__cache)
+            self.__save_item(reposity.groups_key(), dto, item)
+
+        return True
+
+    # Загрузить номенклатуру
+    def __convert_nomenclatures(self, data: dict) -> bool:
+        validator.validate(data, dict)
+        nomenclatures = data.get('nomenclatures', [])
+        if len(nomenclatures) == 0:
+            return False
+         
+        for nomenclature in nomenclatures:
+            dto = nomenclature_dto().create(nomenclature)
+            item = nomenclature_model.from_dto(dto, self.__cache)
+            self.__save_item(reposity.nomenclature_key(), dto, item)
+
+        return True
     
-    def create_default_ingredients(self):
-        ingredients = reposity.ingredients_key
-        nomenclature = self.__reposity.data[reposity.nomenclature_key]
+    # Загрузить ингредиенты
+    def __convert_ingredients(self, data: dict) -> bool:
+        validator.validate(data, dict)
+        ingredients = data.get('ingredients', [])
+        if len(ingredients) == 0:
+            return False
+         
+        for ingredient in ingredients:
+            dto = ingredient_dto().create(ingredient)
+            item = ingredient_model.from_dto(dto, self.__cache)
+            self.__save_item(reposity.ingredients_key(), dto, item)
 
-        # Сахар
-        self.__reposity.data[ingredients]['Сахар'] = \
-            ingredient_model.create(nomenclature['Сахар'], 80)
-        # Сливочное масло 
-        self.__reposity.data[ingredients]['Сливочное масло'] = \
-            ingredient_model.create(nomenclature['Сливочное масло'], 70)
-        # Пшеничная мука
-        self.__reposity.data[ingredients]['Мука пшеничная'] = \
-            ingredient_model.create(nomenclature['Мука пшеничная'], 100)
-        # Яйцо куриное
-        self.__reposity.data[ingredients]['Яйцо куриное'] = \
-            ingredient_model.create(nomenclature['Яйцо куриное'], 1)
-        # Ванилин
-        self.__reposity.data[ingredients]['Ванилин'] = \
-            ingredient_model.create(nomenclature['Ванилин'], 5)
-        # Молоко
-        self.__reposity.data[ingredients]['Молоко'] = \
-            ingredient_model.create(nomenclature['Молоко'], 500)
-        # Соль
-        self.__reposity.data[ingredients]['Соль'] = \
-            ingredient_model.create(nomenclature['Соль'], 5)
+        return True
+    
+    # Обработать полученный словарь    
+    def convert(self, data: dict) -> bool:
+        validator.validate(data, dict)
 
-    def create_default_receipt_steps(self):
-        steps_key = reposity.recipies_steps_key
-        steps = []
-        
-        steps.append(recipe_step_model.create(
-            'Как испечь вафли хрустящие в вафельнице? Подготовьте необходимые продукты. Из данного количества у меня получилось {n} штук диаметром около {diam} см.',
-            {'n': 8, 'diam': 10}
-        ))
+        # 1 Созданим рецепт
+        name = data.get('name', 'Неизвестно')
+        remark = data.get('remark', '')
 
-        steps.append(recipe_step_model.create(
-            'Масло положите в сотейник с толстым дном. Растопите его на маленьком огне на плите, на водяной бане либо в микроволновке.'
-        ))
+        # Загрузим шаги приготовления
+        steps = data.get('steps', [])
+        validated_steps = []
+        for step in steps:
+            step_model = None
+            if isinstance(step, list):
+                step_model = recipe_step_model.create(step[0], step[1])
+            else:
+                step_model = recipe_step_model.create(step)
+            
+            validated_steps.append(step_model)
+            self.__reposity.data[reposity.recipies_steps_key()].append(step_model)
 
-        steps.append(recipe_step_model.create(
-            'Добавьте в теплое масло сахар. Перемешайте венчиком до полного растворения сахара. От тепла сахар довольно быстро растает.'
-        ))
 
-        steps.append(recipe_step_model.create(
-            'Добавьте в масло яйцо. Предварительно все-таки проверьте масло, не горячее ли оно, иначе яйцо может свариться. Перемешайте яйцо с маслом до однородности.'
-        ))
+        self.__convert_measures(data)
+        self.__convert_groups(data)
+        self.__convert_nomenclatures(data)
+        self.__convert_ingredients(data)
 
-        steps.append(recipe_step_model.create(
-            'Всыпьте муку, добавьте ванилин.'
-        ))
+        ingredients = self.__reposity.data[reposity.ingredients_key()]
+        self.__default_recipe = recipe_model.create(name, validated_steps, ingredients, remark)
+        # Сохраняем рецепт
+        self.__reposity.data[reposity.recipes_key()].append(self.__default_recipe)
+        return True
+       
+    """
+    Сохранить элемент в репозитории
+    """
+    def __save_item(self, key:str, dto, item):
+        validator.validate(key, str)
+        item.unique_code = dto.id
+        self.__cache.setdefault(dto.id, item)
+        self.__reposity.data[key].append(item)
 
-        steps.append(recipe_step_model.create(
-            'Перемешайте массу венчиком до состояния гладкого однородного теста.'
-        ))
-
-        steps.append(recipe_step_model.create(
-            """Разогрейте вафельницу по инструкции к ней. У меня очень старая, еще советских времен электровафельница. Она может и не очень красивая, но печет замечательно!
-Я не смазываю вафельницу маслом, в тесте достаточно жира, да и к ней уже давно ничего не прилипает. Но вы смотрите по своей модели. Выкладывайте тесто по столовой ложке.
-Можно класть немного меньше теста, тогда вафли будут меньше и их получится больше."""
-        ))
-
-        steps.append(recipe_step_model.create(
-            'Пеките вафли несколько минут до золотистого цвета. Осторожно откройте вафельницу, она очень горячая! Снимите вафлю лопаткой. Горячая она очень мягкая, как блинчик.'
-        ))
-
-        self.__reposity.data[steps_key]['Вафли'] = steps
-        
-    def create_pancakes_steps(self):
-        """Создание шагов для рецепта блинов"""
-        steps_key = reposity.recipies_steps_key
-        
-        # Шаги для блинов
-        pancakes_steps = []
-        
-        pancakes_steps.append(recipe_step_model.create(
-            'Подготовьте все ингредиенты для блинов. У вас получится около {count} тонких блинов.',
-            {'count': 12}
-        ))
-
-        pancakes_steps.append(recipe_step_model.create(
-            'В глубокой миске смешайте муку, сахар и соль.'
-        ))
-
-        pancakes_steps.append(recipe_step_model.create(
-            'В другой миске взбейте яйца с молоком до однородной массы.'
-        ))
-
-        pancakes_steps.append(recipe_step_model.create(
-            'Постепенно вливайте яично-молочную смесь в мучную, постоянно помешивая венчиком.'
-        ))
-
-        pancakes_steps.append(recipe_step_model.create(
-            'Добавьте растопленное сливочное масло и ванилин. Тщательно перемешайте тесто.'
-        ))
-
-        pancakes_steps.append(recipe_step_model.create(
-            'Тесто должно получиться жидким, как жирные сливки. Оставьте его на {minutes} минут.',
-            {'minutes': 15}
-        ))
-
-        pancakes_steps.append(recipe_step_model.create(
-            'Разогрейте сковороду на среднем огне. Слегка смажьте ее маслом.'
-        ))
-
-        pancakes_steps.append(recipe_step_model.create(
-            'Выливайте тесто половником на горячую сковороду и распределяйте тонким слоем.'
-        ))
-
-        pancakes_steps.append(recipe_step_model.create(
-            'Жарьте блин около {time} секунд с одной стороны до золотистого цвета, затем переверните.',
-            {'time': 40}
-        ))
-
-        pancakes_steps.append(recipe_step_model.create(
-            'Подавайте блины горячими с вареньем, медом или сметаной.'
-        ))
-
-        self.__reposity.data[steps_key]['Блины'] = pancakes_steps
-        
-    def create_pancakes_receipt(self):
-        """Создание рецепта блинов"""
-        recipies_key = reposity.recipies_key
-        steps_key = reposity.recipies_steps_key
-        ingredients_key = reposity.ingredients_key
-
-        # Рецепт блинов
-        pancakes_name = 'Тонкие блины на молоке'
-        pancakes_steps = self.__reposity.data[steps_key]['Блины']
-        pancakes_ingredients = [
-            self.__reposity.data[ingredients_key]['Мука пшеничная'],
-            self.__reposity.data[ingredients_key]['Молоко'],
-            self.__reposity.data[ingredients_key]['Яйцо куриное'],
-            self.__reposity.data[ingredients_key]['Сахар'],
-            self.__reposity.data[ingredients_key]['Сливочное масло'],
-            self.__reposity.data[ingredients_key]['Соль'],
-            self.__reposity.data[ingredients_key]['Ванилин']
-        ]
-        pancakes_remark = '12 порций. Время приготовления - 30 мин. Идеальный завтрак для всей семьи!'
-        self.__reposity.data[recipies_key]['Блины'] = recipe_model.create(pancakes_name, pancakes_steps, pancakes_ingredients, pancakes_remark)
-        
-    def create_default_receipt(self):
-        recipies_key = reposity.recipies_key
-        steps_key = reposity.recipies_steps_key
-        ingredients_key = reposity.ingredients_key
-
-        # Рецепт вафель
-        name = 'Вафли хрустящие в вафельнице'
-        steps = self.__reposity.data[steps_key]['Вафли']
-        ingredients = [
-            self.__reposity.data[ingredients_key]['Сливочное масло'],
-            self.__reposity.data[ingredients_key]['Сахар'],
-            self.__reposity.data[ingredients_key]['Яйцо куриное'],
-            self.__reposity.data[ingredients_key]['Мука пшеничная'],
-            self.__reposity.data[ingredients_key]['Ванилин']
-        ]
-        remark = '10 порций. Время приготовления - 20 мин.'
-        self.__reposity.data[recipies_key]['Вафли'] = recipe_model.create(name, steps, ingredients, remark)
-        
     def start(self):
-        self.default_create_measure()
-        self.default_create_groups()
-        self.default_create_nomenclature()
-        self.create_default_ingredients()
-        self.create_default_receipt_steps()
-        self.create_default_receipt()
-        self.create_pancakes_steps()
-        self.create_pancakes_receipt()
+        self.__filename = "settings.json"
+        result = self.load()
+        if not result:
+            raise operation_exception("Невозможно сформировать стартовый набор данных!")

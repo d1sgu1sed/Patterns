@@ -8,10 +8,6 @@ from Src.Models.recipe_step_model import recipe_step_model
 
 class Test_recipe_model(unittest.TestCase):
     __start_service = start_service()
-
-    def __init__(self, methodName = "runTest"):
-        super().__init__(methodName)
-        self.__start_service.start()
         
     """
     Проверка создания рецепта
@@ -30,8 +26,8 @@ class Test_recipe_model(unittest.TestCase):
     """
     def test_fabric_method(self):
         # подготовка
-        recipe = self.__start_service.reposity.data[reposity.recipies_key]['Вафли']
-        steps = self.__start_service.reposity.data[reposity.recipies_steps_key]['Вафли']
+        recipe = self.__start_service.reposity.data[reposity.recipes_key()][0]
+        steps = self.__start_service.reposity.data[reposity.recipies_steps_key()]
         
         # действие
 

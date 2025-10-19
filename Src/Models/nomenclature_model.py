@@ -1,3 +1,4 @@
+from Dtos.nomeclature_dto import nomenclature_dto
 from Src.Core.validator import validator
 from Src.Core.abstract import abstract
 from Src.Models.nomenclature_group_model import nomenclature_group_model
@@ -16,7 +17,6 @@ class nomenclature_model(abstract):
     __full_name: str
     __group: nomenclature_group_model
     __measure: measure_model
-    _instances = {}
 
     def __init__(self, name: str, group: nomenclature_group_model, measure: measure_model):
         super().__init__(name)
@@ -67,8 +67,19 @@ class nomenclature_model(abstract):
     @staticmethod
     def create(name: str, group: nomenclature_group_model, measure: measure_model):
         validator.validate(name, str, 50)
-        if name in nomenclature_model._instances.keys():
-            return nomenclature_model._instances[name]
         item = nomenclature_model(name, group, measure)
-        nomenclature_model._instances[name] = item
+        
+        return item
+    
+    """
+    Фабричный метод из Dto
+    """
+    @staticmethod
+    def from_dto(dto:nomenclature_dto, cache:dict):
+        validator.validate(dto, nomenclature_dto)
+        validator.validate(cache, dict)
+        measure = cache.get(dto.measure_id, None)
+        group = cache.get(dto.nomenclature_model_id, None)
+        item = nomenclature_model.create(dto.name, group, measure)
+        item.unique_code = dto.id
         return item

@@ -17,8 +17,8 @@ class settings_manager:
     __instance = False
     __filename: str = ''
     __settings: settings_model = None
-    __config_dict: dict
-    __attrs = settings_model().company_attrs()
+    __global_attrs: list = ['response_format', 'company']
+    __list_attrs: list = ['company']
     
     def __init__(self, filename: str):
         self.__filename = filename
@@ -64,20 +64,20 @@ class settings_manager:
         
         try:
             file = open(self.__filename)
-            global_config: dict = json.load(file)
-            if 'company' not in global_config:
-                return False
-            self.__config_dict = global_config['company']
-            if len(self.__config_dict.keys()) == len(self.__attrs):
-                for key in self.__config_dict.keys():
-                    if key not in self.__attrs:
-                        return False
-                settings = self.convert_to_settings()
-                self.__settings = settings
-                return True
-            return False
+            config: dict = json.load(file)
+            for key in self.__global_attrs:
+                if key not in config.keys():
+                    return False
+                
+            self.__settings = settings_model()
+            
+            for key in self.__global_attrs:
+                if key in self.__list_attrs:
+                    self.__convert_to_settings(key, config[key])
+                else:
+                    setattr(self.__settings, key, config[key])
+            return True
         except:
-            print(11)
             return False
 
     """
@@ -91,12 +91,12 @@ class settings_manager:
     """
     Функция конвертации из dict в settings_model
     """
-    def convert_to_settings(self):
-        self.__settings = settings_model()
-        for item in self.__config_dict.keys():
-            if item in self.__attrs:
-                setattr(self.__settings.company, item, self.__config_dict[item])
-        return self.__settings
+    def __convert_to_settings(self, key: str, data: dict):
+        attrs = getattr(settings_model, key + '_attrs')()
+        for item in data.keys():
+            if item in attrs:
+                model = getattr(self.__settings, key)
+                setattr(model, item, data[item])
         
 
         

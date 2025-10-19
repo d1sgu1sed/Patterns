@@ -35,5 +35,14 @@ class reposity:
         return 'recipe_steps'
     
     @staticmethod
-    def recipies_key():
+    def recipes_key():
         return 'recipe'
+
+    """
+    Инициализация
+    """
+    def initalize(self):
+        keys = [key for key in self.__dir__() if key.endswith('_key')]
+        for key in keys:
+            key_method = getattr(self, key)
+            self.__data[key_method()] = []
