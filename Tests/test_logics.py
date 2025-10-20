@@ -13,10 +13,15 @@ from Src.Core.abstract_response import abstract_response
 from Src.reposity import reposity
 from Src.start_service import start_service
 
-# Тесты для проверки логики 
 class Test_factory(unittest.TestCase):
+    """
+    Тесты для проверки работы фабрики и методов response_*
+    """
     __start_service = start_service()
 
+    """
+    Тест проверки создания markdown рецепта
+    """
     def test_md_factory_create(self):
         # Подготовка
         factory = factory_entities()
@@ -42,6 +47,9 @@ class Test_factory(unittest.TestCase):
         assert text == file_content
         assert f"# {data.name.upper()}" in text
     
+    """
+    Тест проверки создания json рецепта
+    """
     def test_json_factory_create(self):
     # Подготовка
         factory = factory_entities()
@@ -75,7 +83,10 @@ class Test_factory(unittest.TestCase):
         assert "steps" in json_data
         assert json_data["name"] == data.name
     
-    def test_csv_not_none_factory_create(self):
+    """
+    Тест проверки создания csv рецепта
+    """
+    def test_csv_factory_create(self):
         # Подготовка
         factory = factory_entities()
         data = self.__start_service.reposity.data[reposity.recipes_key()][0]
@@ -110,7 +121,10 @@ class Test_factory(unittest.TestCase):
         assert "ИНГРЕДИЕНТЫ" in text_normalized
         assert "ПОШАГОВОЕ ПРИГОТОВЛЕНИЕ" in text_normalized
     
-    def test_xlsx_not_none_factory_create(self):
+    """
+    Тест проверки создания xlsx рецепта
+    """
+    def test_xlsx_factory_create(self):
     # Подготовка
         factory = factory_entities()
         data = self.__start_service.reposity.data[reposity.recipes_key()][0]

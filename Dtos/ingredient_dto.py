@@ -1,11 +1,13 @@
 from Src.Core.abstract_dto import abstract_dto
 
-# Модель единицы измерения (dto)
-# Пример
-#       "nomenclature_id":"0c101a7e-5934-4155-83a6-d2c388fcc11a",
-#       "range_id":"adb7510f-687d-428f-a697-26e53d3f65b7",
-#       "value":100
 class ingredient_dto(abstract_dto):
+    """
+    Модель единицы измерения (dto)
+    Пример
+        "nomenclature_id":"0c101a7e-5934-4155-83a6-d2c388fcc11a",
+        "range_id":"adb7510f-687d-428f-a697-26e53d3f65b7",
+        "value":100
+    """
     __nomenclature_id: str = None
     __measure_id: str = None
     __value: float = 1.0

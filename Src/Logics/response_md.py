@@ -123,7 +123,7 @@ class response_md(abstract_response):
         table += "|-------------|------------|\n"
         
         for ingredient in self.__recipe.ingredients:
-            name = ingredient.product.measure.name
+            name = ingredient.product.name
             quantity = f"{ingredient.amount} {ingredient.measure.name}"
             table += f"| {name} | {quantity} |\n"
         

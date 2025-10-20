@@ -1,3 +1,4 @@
+import re
 from Src.Core.abstract_response import abstract_response
 from Src.Core.validator import validator
 from Src.Models.recipe_model import recipe_model
@@ -11,6 +12,25 @@ from openpyxl.styles import Font, Alignment
 class excel_creation_error(Exception):
     pass
 
+
+"""
+Исключение при форматировании пустой строки
+"""  
+class empty_description_exception(Exception):
+    pass
+
+"""
+Исключение при неравном количестве 
+плейсхолдеров и параметров шага
+"""  
+class non_equal_params(Exception):
+    pass
+
+"""
+Исключение при форматировании
+"""  
+class formatting_error(Exception):
+    pass
 
 class response_xlsx(abstract_response):
     """
@@ -65,6 +85,37 @@ class response_xlsx(abstract_response):
         return item
 
     """
+    Форматирует строку description, подставляя параметры из params
+    в плейсхолдеры в фигурных скобках.
+    """
+    def __formatting(self, step: recipe_step_model) -> str:  
+        if not step.description:
+            raise empty_description_exception("Пустое описание")
+        
+        if step.params is None:
+            step.params = []
+        
+        placeholders = re.findall(r'\{([^}]+)\}', step.description)
+        
+        if len(placeholders) != len(step.params):
+            raise non_equal_params(
+                f"Количество плейсхолдеров {len(placeholders)} не соответствует количеству параметров {len(step.params)}"
+            )
+        
+        try:
+            if isinstance(step.params, dict):
+                # Для dict-параметров
+                formatted_description = step.description.format(**step.params)
+            else:
+                # Для list-параметров
+                formatted_description = step.description.format(*step.params)
+            return formatted_description
+        except:
+            raise formatting_error(
+                f"Ошибка при форматировании строки. Плейсхолдеры: {placeholders}, Параметры: {step.params}"
+            )
+
+    """
     Форматирует шаги приготовления
     """
     def __format_steps(self) -> list:
@@ -74,7 +125,7 @@ class response_xlsx(abstract_response):
         formatted_steps = []
         for i, step in enumerate(self.__recipe.steps, 1):
             try:
-                formatted_step = self._format_step_description(step)
+                formatted_step = self.__formatting(step)
                 formatted_steps.append([i, formatted_step])
             except Exception as e:
                 formatted_steps.append([i, f"[Ошибка форматирования шага: {e}]"])

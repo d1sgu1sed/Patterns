@@ -1,4 +1,3 @@
-from Src.Core.entity import entity
 from Src.Core.abstract import abstract
 from Src.Core.validator import argument_exception
 
@@ -11,7 +10,7 @@ class common:
     @staticmethod
     def get_models() -> list:
         result = []
-        for  inheritor in entity.__subclasses__():
+        for  inheritor in abstract.__subclasses__():
             result.append(inheritor.__name__)
 
         return result    

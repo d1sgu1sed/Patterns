@@ -2,8 +2,10 @@ import abc
 from Src.Core.validator import validator, operation_exception
 from Src.Models.recipe_model import recipe_model
 
-# Абстрактный класс для фолрмирования ответов
 class abstract_response(abc.ABC):
+    """
+    Абстрактный класс для формирования ответов
+    """
     
     """
     Сформировать нужный ответ

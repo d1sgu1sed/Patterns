@@ -3,10 +3,13 @@ from Src.Core.common import common
 from Src.Core.validator import validator, operation_exception
 
 
-"""
-Абстрактный класс для наследования только dto структур
-"""
 class abstract_dto:
+    """
+    Абстрактный класс для наследования только dto структур
+    Поля:
+        name (str): Название dto.
+        id (str): id dto.
+    """
     __name:str = ""
     __id:str = ""
 
