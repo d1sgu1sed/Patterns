@@ -1,3 +1,4 @@
+from Dtos.measure_dto import measure_dto
 from Src.Core.validator import validator
 from Src.Core.abstract import abstract
 
@@ -11,7 +12,6 @@ class measure_model(abstract):
     """
     __base_measure = None
     __coef: float
-    _instances = {}
 
     def __init__(self, name: str, coef: float | int = 1, base_measure = None):
         super().__init__(name)
@@ -69,15 +69,22 @@ class measure_model(abstract):
 
     @staticmethod
     def create(name: str, base = None, coef: float | int = 1):
-        if name in measure_model._instances.keys():
-            return measure_model._instances[name]
-        inner_base = None
         item = measure_model(name)
         if base is not None:
             validator.validate(base, measure_model)
-            inner_base = base
-            item.base_measure = inner_base
+            item.base_measure = base
         item.coef = coef
-        measure_model._instances[name] = item
+        return item
+    
+    """
+    Фабричный метод из Dto
+    """
+    @staticmethod
+    def from_dto(dto:measure_dto, cache:dict):
+        validator.validate(dto, measure_dto)
+        validator.validate(cache, dict)
+        base = cache.get(dto.base_id, None)
+        item = measure_model.create(dto.name, base, dto.value)
+        item.unique_code = dto.id
         return item
         

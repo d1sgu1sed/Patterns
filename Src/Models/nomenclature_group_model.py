@@ -1,4 +1,5 @@
 from Src.Core.abstract import abstract
+from Src.Core.abstract_dto import abstract_dto
 from Src.Core.validator import validator
 
 class nomenclature_group_model(abstract):
@@ -6,7 +7,6 @@ class nomenclature_group_model(abstract):
     Модель группа номенклатуры. 
     Предназначена для классификации номенклатуры по группам и категориям.
     """
-    _instances = {}
     
     """
     Наследование функции инициализации
@@ -17,8 +17,16 @@ class nomenclature_group_model(abstract):
     @staticmethod
     def create(name: str):
         validator.validate(name, str, 50)
-        if name in nomenclature_group_model._instances.keys():
-            return nomenclature_group_model._instances[name]
         item = nomenclature_group_model(name)
-        nomenclature_group_model._instances[name] = item
+        
+        return item
+    
+    """
+    Фабричный метод из Dto
+    """
+    @staticmethod
+    def from_dto(dto:abstract_dto, cache:dict):
+        item = nomenclature_group_model()
+        item.name = dto.name
+        item.unique_code = dto.id
         return item

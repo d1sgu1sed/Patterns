@@ -15,7 +15,6 @@ class recipe_model(abstract):
     __steps: list
     __ingredients: list
     __remark: str = None
-    _instances = {}
 
     def __init__(self, name = ""):
         super().__init__(name)
@@ -66,12 +65,9 @@ class recipe_model(abstract):
     @staticmethod
     def create(name: str, steps: list, ingredients: list, remark: str):
         validator.validate(name, str, 50)
-        if name in recipe_model._instances.keys():
-            return recipe_model._instances[name]
-        
         validator.validate(remark, str, 1024)
-
         validator.validate(steps, list)
+        
         for step in steps:
             validator.validate(step, recipe_step_model)
 
@@ -83,5 +79,5 @@ class recipe_model(abstract):
         item.remark = remark
         item.steps = steps
         item.ingredients = ingredients
-        recipe_model._instances[name] = item
+
         return item
