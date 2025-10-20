@@ -1,5 +1,6 @@
 from Src.Models.company_model import company_model
 from Src.Core.validator import validator
+from Src.Core.response_format import response_formats
 
 class settings_model:
     """
@@ -9,6 +10,7 @@ class settings_model:
         company (company_model): Настройки организации.
     """
     __company: company_model = company_model()
+    __response_format: str = ""
 
     """
     company (company_model): Настройки организации.
@@ -22,6 +24,15 @@ class settings_model:
         validator.validate(value, company_model)
         self.__company = value
 
+    @property
+    def response_format(self):
+        return self.__response_format
+
+    @response_format.setter
+    def response_format(self, value: str):
+        validator.validate(value, str)
+        self.__response_format = value
+
     def __init__(self, is_default=True):
         if(is_default):
             self.default()
@@ -33,9 +44,10 @@ class settings_model:
         self.__company.__correspondent_acc = 93029318293
         self.__company.__BIK = 129031223
         self.__company.__type_of_property = "33333"
+        self.__response_format = response_formats.md()
 
-    def company_attrs(self):
-        return ['name', 'INN', 'account', 
-                'correspondent_acc', 'BIK', 'type_of_property']
+    @staticmethod
+    def company_attrs():
+        return [attr for attr in dir(company_model) if not attr.startswith('_') and attr != 'unique_code']
             
 

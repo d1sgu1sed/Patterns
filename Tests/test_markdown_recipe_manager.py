@@ -8,17 +8,13 @@ from Src.start_service import start_service
 
 class Test_markdown_recipe_manager(unittest.TestCase):
     __start_service = start_service()
-
-    def __init__(self, methodName = "runTest"):
-        super().__init__(methodName)
-        self.__start_service.start()
     
     """
     Проверка работы генерации markdown
     """
     def test_generate_markdown(self):
         # подготовка
-        recipe = self.__start_service.reposity.data[reposity.recipies_key]['Вафли']
+        recipe = self.__start_service.reposity.data[reposity.recipes_key()][0]
         expected_filename = "Docs/waffles.md"
         manager = markdown_recipe_manager.create(expected_filename, recipe)
         
@@ -50,7 +46,7 @@ class Test_markdown_recipe_manager(unittest.TestCase):
     """
     def test_create_factory_method(self):
         # подготовка
-        recipe = self.__start_service.reposity.data[reposity.recipies_key]['Вафли']
+        recipe = self.__start_service.reposity.data[reposity.recipes_key()][0]
         filename = "test_factory.md"
         manager1 = markdown_recipe_manager.create(filename, recipe)
         manager2 = markdown_recipe_manager.create(filename, recipe)
