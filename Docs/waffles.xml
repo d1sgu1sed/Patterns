@@ -1,0 +1,62 @@
+<?xml version="1.0" ?>
+<recipe>
+  <name>Вафли хрустящие в вафельнице</name>
+  <remark>10 порций. Время приготовления - 20 мин.</remark>
+  <ingredients>
+    <ingredient>
+      <product>Пшеничная мука</product>
+      <amount>100.0</amount>
+      <measure>Грамм</measure>
+    </ingredient>
+    <ingredient>
+      <product>Сахар</product>
+      <amount>80.0</amount>
+      <measure>Грамм</measure>
+    </ingredient>
+    <ingredient>
+      <product>Сливочное масло</product>
+      <amount>70.0</amount>
+      <measure>Грамм</measure>
+    </ingredient>
+    <ingredient>
+      <product>Яйцо</product>
+      <amount>1.0</amount>
+      <measure>Штуки</measure>
+    </ingredient>
+    <ingredient>
+      <product>Ванилин</product>
+      <amount>5.0</amount>
+      <measure>Грамм</measure>
+    </ingredient>
+  </ingredients>
+  <steps>
+    <step number="1">
+      <description>Как испечь вафли хрустящие в вафельнице? Подготовьте необходимые продукты. Из данного количества у меня получилось 8 штук диаметром около 10 см.</description>
+      <parameters>
+        <parameter key="n">8</parameter>
+        <parameter key="diam">10</parameter>
+      </parameters>
+    </step>
+    <step number="2">
+      <description>Масло положите в сотейник с толстым дном. Растопите его на маленьком огне на плите, на водяной бане либо в микроволновке.</description>
+    </step>
+    <step number="3">
+      <description>Добавьте в теплое масло сахар. Перемешайте венчиком до полного растворения сахара. От тепла сахар довольно быстро растает.</description>
+    </step>
+    <step number="4">
+      <description>Добавьте в масло яйцо. Предварительно все-таки проверьте масло, не горячее ли оно, иначе яйцо может свариться. Перемешайте яйцо с маслом до однородности.</description>
+    </step>
+    <step number="5">
+      <description>Всыпьте муку, добавьте ванилин.</description>
+    </step>
+    <step number="6">
+      <description>Перемешайте массу венчиком до состояния гладкого однородного теста.</description>
+    </step>
+    <step number="7">
+      <description>Разогрейте вафельницу по инструкции к ней. У меня очень старая, еще советских времен электровафельница. Она может и не очень красивая, но печет замечательно! Я не смазываю вафельницу маслом, в тесте достаточно жира, да и к ней уже давно ничего не прилипает. Но вы смотрите по своей модели. Выкладывайте тесто по столовой ложке. Можно класть немного меньше теста, тогда вафли будут меньше и их получится больше.</description>
+    </step>
+    <step number="8">
+      <description>Пеките вафли несколько минут до золотистого цвета. Осторожно откройте вафельницу, она очень горячая! Снимите вафлю лопаткой. Горячая она очень мягкая, как блинчик.</description>
+    </step>
+  </steps>
+</recipe>

@@ -3,8 +3,9 @@ from Src.Core.abstract_response import abstract_response
 from Src.Logics.response_json import response_json
 from Src.Logics.response_md import response_md
 from Src.Logics.response_csv import response_csv
-from Src.Logics.response_xlsx import response_xlsx
+from Src.Logics.response_xml import response_xml
 from Src.Core.validator import operation_exception
+from Src.Models.settings_model import settings_model
 
 class factory_entities:
     """
@@ -24,3 +25,12 @@ class factory_entities:
             raise operation_exception("Формат неверный")
         
         return self.__formats[format]
+
+    """
+    Создает объект ответа по умолчанию на основе настроек
+    """
+    def create_default(self, settings: settings_model):
+        if settings is None:
+            raise operation_exception("Настройки не представлены в FactoryEntities!")
+        fmt = settings.response_format
+        return self.create(fmt)

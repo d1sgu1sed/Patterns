@@ -1,7 +1,7 @@
 from Src.Logics.response_csv import response_csv
 from Src.Logics.response_json import response_json
 from Src.Logics.response_md import response_md
-from Src.Logics.response_xlsx import response_xlsx
+from Src.Logics.response_xml import response_xml
 
 
 class response_formats:
@@ -14,8 +14,8 @@ class response_formats:
         return "csv"
     
     @staticmethod
-    def xlsx() -> str:
-        return "xlsx"
+    def xml() -> str:
+        return "xml"
     
     @staticmethod
     def md() -> str:
