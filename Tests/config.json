@@ -7,5 +7,6 @@
         "correspondent_acc": 93029318288,
         "BIK": 129031289,
         "type_of_property": "99999"
-    }
+    },
+    "response_format": "markdown"
 }
