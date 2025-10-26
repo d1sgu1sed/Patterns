@@ -1,3 +1,4 @@
+from Dtos.recipe_dto import recipe_dto
 from Src.Core.validator import validator
 from Src.Core.abstract import abstract
 from Src.Models.recipe_step_model import recipe_step_model
@@ -80,4 +81,16 @@ class recipe_model(abstract):
         item.steps = steps
         item.ingredients = ingredients
 
+        return item
+    
+    """
+    Функция перевода объекта в DTO
+    """
+    def to_dto(self):
+        item = recipe_dto()
+        item.id = self.unique_code
+        item.name = self.name
+        item.ingredients = self.__ingredients
+        item.remark = self.__remark
+        item.steps = self.__steps
         return item

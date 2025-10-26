@@ -1,6 +1,7 @@
 import abc
+from Src.Converters.convert_factory import convert_factory
+from Src.Core.abstract import abstract
 from Src.Core.validator import validator, operation_exception
-from Src.Models.recipe_model import recipe_model
 
 class abstract_response(abc.ABC):
     """
@@ -11,11 +12,20 @@ class abstract_response(abc.ABC):
     Сформировать нужный ответ
     """
     @abc.abstractmethod
-    def generate(self, format:str, data: list) -> str:
-        validator.validate(format, str)
+    def generate(self, data: list) -> str:
         validator.validate(data, list)
 
         if len(data) == 0:
             raise operation_exception("Нет данных!")
 
         return ""
+    
+    """
+    Создание словаря из объекта
+    """
+    def generate_dict(self, data: list[abstract]):
+        validator.validate(data, list)
+        validator.validate(data[0], abstract)
+        converter = convert_factory()
+        return converter.convert(data)
+

@@ -30,7 +30,6 @@ class abstract_dto:
         self.__id = value   
 
     # Универсальный фабричный метод для загрузки dto из словаря
-    @abc.abstractmethod
     def create(self, data) -> "abstract_dto":
         validator.validate(data, dict)
         fields = common.get_fields(self)

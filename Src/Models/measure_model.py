@@ -10,7 +10,7 @@ class measure_model(abstract):
         base_measure (measure_model | None): Базовая единица измерения.
         coef (float): Числовое отношение к базовой единице измерения.
     """
-    __base_measure = None
+    __base_measure: 'measure_model' = None
     __coef: float
 
     def __init__(self, name: str, coef: float | int = 1, base_measure = None):
@@ -87,4 +87,17 @@ class measure_model(abstract):
         item = measure_model.create(dto.name, base, dto.value)
         item.unique_code = dto.id
         return item
-        
+    
+    """
+    Функция перевода объекта в DTO
+    """
+    def to_dto(self):
+        item = measure_dto()
+        if self.__base_measure is not None:
+            item.base_id = self.__base_measure.unique_code
+        else:
+            item.base_id = None
+        item.name = self.name
+        item.value = self.__coef
+        item.id = self.unique_code
+        return item

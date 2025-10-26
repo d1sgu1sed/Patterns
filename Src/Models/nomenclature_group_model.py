@@ -1,3 +1,4 @@
+from Dtos.nomenclature_group_dto import nomenclature_group_dto
 from Src.Core.abstract import abstract
 from Src.Core.abstract_dto import abstract_dto
 from Src.Core.validator import validator
@@ -29,4 +30,13 @@ class nomenclature_group_model(abstract):
         item = nomenclature_group_model()
         item.name = dto.name
         item.unique_code = dto.id
+        return item
+
+    """
+    Функция перевода объекта в DTO
+    """
+    def to_dto(self):
+        item = nomenclature_group_dto()
+        item.name = self.name
+        item.id = self.unique_code
         return item

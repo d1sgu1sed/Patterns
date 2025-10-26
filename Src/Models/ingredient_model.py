@@ -86,3 +86,15 @@ class ingredient_model(abstract):
         if dto.id == "":
             dto.id = item.unique_code
         return item
+    
+
+    """
+    Функция перевода объекта в DTO
+    """
+    def to_dto(self):
+        item = ingredient_dto()
+        item.id = self.unique_code
+        item.measure_id = self.__measure.unique_code
+        item.value = self.__amount
+        item.nomenclature_id = self.__product.unique_code
+        return item
