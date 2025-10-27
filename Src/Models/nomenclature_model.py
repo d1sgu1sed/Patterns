@@ -83,3 +83,14 @@ class nomenclature_model(abstract):
         item = nomenclature_model.create(dto.name, group, measure)
         item.unique_code = dto.id
         return item
+    
+    """
+    Функция перевода объекта в DTO
+    """
+    def to_dto(self):
+        item = nomenclature_dto()
+        item.name = self.name
+        item.nomenclature_model_id = self.__group.unique_code
+        item.measure_id = self.__measure.unique_code
+        item.id = self.unique_code
+        return item

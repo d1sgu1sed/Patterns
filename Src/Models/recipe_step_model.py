@@ -1,3 +1,4 @@
+from Dtos.recipe_step_dto import recipe_step_dto
 from Src.Core.validator import validator
 from Src.Core.abstract import abstract
 
@@ -58,4 +59,16 @@ class recipe_step_model(abstract):
             validator.validate(params, list|dict)
             item.params = params
 
+        return item
+    
+    """
+    Функция перевода объекта в DTO
+    """
+    def to_dto(self):
+        item = recipe_step_dto()
+        item.id = self.unique_code
+        if self.__params is not None: 
+            item.step = [self.description, self.__params]
+        else:
+            item.step = self.description
         return item

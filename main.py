@@ -7,7 +7,6 @@ from Src.Logics.response_md import response_md
 from Src.Logics.response_xml import response_xml
 from Src.reposity import reposity
 from Src.start_service import start_service
-from Src.Models.model_data_route import model_data_route
 
 flask_app = connexion.FlaskApp(__name__)
 app = flask_app.app
@@ -40,33 +39,34 @@ def get_response(type):
 """
 @app.route("/response/<string:format_type>/<string:model_type>", methods=['GET'])
 def get_response_with_model(format_type, model_type):
-    # Если format_type - это формат вывода (json, xml, md, csv)
-    if format_type in responses_factory.formats:
-        return __get_formatted_response(format_type, model_type, data)
-    else:
+    if format_type not in responses_factory.formats:
+        abort(404)
+    if model_type not in data.keys():
         abort(404)
 
+    result_format = factory_entities().create(format_type)()
+    result = result_format.generate(list(data[model_type]))
+    return result
 
 """
-Получение данных в указанном формате
+Получить список рецептов
 """
-def __get_formatted_response(format_type, model_type, data):
-    try:
-        # Получаем данные модели
-        model_data = model_data_route.get_raw_model_data(model_type, data)
-        if isinstance(model_data, tuple):  # Если вернулась ошибка
-            return model_data
-        
-        # Создаем форматтер
-        response = responses_factory.create(format_type)
-        formatter = response()
-        
-        # Генерируем данные в нужном формате
-        text = formatter.generate(model_data)
-        return text
-        
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+@app.route("/response/recipes", methods=['GET'])
+def get_recipes():
+    result_format = factory_entities().create("json")()
+    result = result_format.generate(data[reposity.recipes_key()])
+    return result
+
+"""
+Получить список рецептов
+"""
+@app.route("/response/recipe/<string:id>", methods=['GET'])
+def get_recipe(id):
+    result_format = factory_entities().create("json")()
+    for recipe in data[reposity.recipes_key()]:
+        if recipe.unique_code == id:
+            result = result_format.generate([recipe])
+            return result
 
 @app.errorhandler(404)
 def page_not_found(error):
