@@ -1,10 +1,17 @@
+from datetime import datetime
 import json
 import os
 from Dtos.ingredient_dto import ingredient_dto
 from Dtos.measure_dto import measure_dto
 from Dtos.nomenclature_group_dto import nomenclature_group_dto
 from Dtos.nomeclature_dto import nomenclature_dto
+from Dtos.storage_dto import storage_dto
+from Dtos.transaction_dto import transaction_dto
+from Src.Converters.convert_factory import convert_factory
 from Src.Core.validator import argument_exception, operation_exception, validator
+from Src.Models.osv_model import osv_model
+from Src.Models.storage_model import storage_model
+from Src.Models.transaction_model import transaction_model
 from Src.reposity import reposity
 from Src.Models.measure_model import measure_model
 from Src.Models.nomenclature_group_model import nomenclature_group_model
@@ -68,9 +75,17 @@ class start_service:
             with open(self.__filename, 'r') as file_instance:
                 settings = json.load(file_instance)
 
+                first_start = settings.get("first_start", False)
+                if not first_start:
+                    return True
                 if "default_receipt" in settings.keys():
                     data = settings["default_receipt"]
-                    return self.convert(data)
+                    if not(self.convert(data) and\
+                        self.__convert_storages(settings) and\
+                        self.__convert_transactions(settings)
+                        ):
+                        return False
+                    return True
 
             return False
         except Exception as e:
@@ -133,6 +148,32 @@ class start_service:
 
         return True
     
+    # Загрузить склады
+    def __convert_storages(self, data: dict) -> bool:
+        validator.validate(data, dict)
+        storages = data.get("storages", None)
+        if storages is None or len(storages) == 0:
+            return False
+        for storage in storages:
+            dto = storage_dto().create(storage)
+            item = storage_model.from_dto(dto, self.__cache)
+            self.__save_item(reposity.storage_key(), dto, item)
+
+        return True       
+
+    # Загрузить транзакции
+    def __convert_transactions(self, data: dict) -> bool:
+        validator.validate(data, dict)      
+        transactions = data.get("transactions", None) 
+        if transactions is None or len(transactions) == 0:
+            return False
+        for transaction in transactions:
+            dto = transaction_dto().create(transaction)
+            item = transaction_model.from_dto(dto, self.__cache)
+            self.__save_item(reposity.transaction_key(), dto, item )
+
+        return True 
+    
     # Обработать полученный словарь    
     def convert(self, data: dict) -> bool:
         validator.validate(data, dict)
@@ -165,7 +206,39 @@ class start_service:
         # Сохраняем рецепт
         self.__reposity.data[reposity.recipes_key()].append(self.__default_recipe)
         return True
-       
+    
+    """
+    Создание ОСВ
+    """
+    def create_osv(self, start: datetime, end: datetime, storage_id: str):
+        data = self.__reposity.data
+        transactions = data[reposity.transaction_key()]
+        nomenclatures = data[reposity.nomenclature_key()]
+        storage = self.__cache.get(storage_id, None)
+        validator.validate(storage, storage_model)
+        osv = osv_model.create(start, end, storage)
+        osv.generate_units(transactions, nomenclatures)
+        return osv
+    
+    """
+    Вывод данных в файл
+    """
+    def dump(self, filename: str) -> bool:
+        validator.validate(filename, str)
+        try:
+            data = {}
+            converter = convert_factory()
+            for key in reposity().keys:
+                data[key] = []
+                for i in self.__reposity.data[key]:
+                    data[key].append(converter.convert(i))
+            with open(filename, 'w', encoding="UTF-8") as file_instance:
+                json.dump(data, file_instance, ensure_ascii=False, indent=4)
+            return True
+        except Exception as e:
+            error_message = str(e)
+            return False
+
     """
     Сохранить элемент в репозитории
     """

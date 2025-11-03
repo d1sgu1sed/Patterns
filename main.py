@@ -1,5 +1,8 @@
+from datetime import datetime
+import json
 import connexion
 from flask import abort, jsonify
+import flask
 
 from Src.Logics.factory_entities import factory_entities
 from Src.Logics.response_json import response_json
@@ -31,8 +34,9 @@ def get_response(type):
     if type not in responses_factory.formats:
         abort(404)
     response = responses_factory.create(type)
-    text = response().generate(data[reposity.recipes_key()][0])
+    text = response().generate([data[reposity.recipes_key()][0]])
     return text
+
 
 """
 Получение данных в указанном формате для указанного типа модели
@@ -48,6 +52,7 @@ def get_response_with_model(format_type, model_type):
     result = result_format.generate(list(data[model_type]))
     return result
 
+
 """
 Получить список рецептов
 """
@@ -57,8 +62,9 @@ def get_recipes():
     result = result_format.generate(data[reposity.recipes_key()])
     return result
 
+
 """
-Получить список рецептов
+Получить рецепт по идентификатору
 """
 @app.route("/response/recipe/<string:id>", methods=['GET'])
 def get_recipe(id):
@@ -67,14 +73,71 @@ def get_recipe(id):
         if recipe.unique_code == id:
             result = result_format.generate([recipe])
             return result
+    abort(404)
+
+"""
+Получить отчет по оборотной ведомости для указанного склада и периода
+"""
+@app.route("/report/<string:code>/<string:start>/<string:end>", methods=['GET'])
+def get_report(code, start, end):
+    result_format = factory_entities().create("csv")()
+    res = data[reposity.storage_key()]
+    storage = None
+    
+    try:
+        start_date = datetime.strptime(start,"%d-%m-%Y %H:%M:%S")
+        finish_date = datetime.strptime(end,"%d-%m-%Y %H:%M:%S")
+    except:
+        return "Неправильный формат дат!"
+    
+    for item in res:
+        if item.unique_code == code:
+            storage = item
+            break
+            
+    if storage is None:
+        return "Неправильный код склада!"
+    
+    osv = data_service.create_osv(start_date, finish_date, storage.unique_code)
+    
+    # Задаем желаемый порядок полей для CSV
+    field_order = ["name", "measure_id", "nomenclature_id", "start_amount", "finish_amount", "add", "sub"]
+    
+    # Передаем порядок полей в генератор CSV
+    result = result_format.generate(osv.units, field_order)
+    return flask.Response(response=result, status=200, 
+               content_type="text/plain;charset=utf-8")
+
+
+"""
+Выполнить дамп данных в файл
+"""
+@app.route("/dump", methods=['POST'])
+def dump():
+    res = data_service.dump("settings2.json")
+    
+    if res:
+        result = json.dumps({"status": "success", "message": "Info saved to file!"})
+        return result
+    else:
+        result = json.dumps({"status": "error", "message": "Error with saving info!"})
+        return result, 400
+
 
 @app.errorhandler(404)
 def page_not_found(error):
     return f'Маршрут не найден.', 404
 
+
 @app.errorhandler(500)
 def internal_server_error(error):
     return f'Внутренняя ошибка сервера: {str(error)}', 500
+
+
+@app.errorhandler(405)
+def method_not_allowed(error):
+    return f'Метод не разрешен для данного маршрута. Разрешенные методы: {error.valid_methods}', 405
+
 
 if __name__ == '__main__':
     data_service.start()
