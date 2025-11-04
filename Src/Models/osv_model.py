@@ -119,9 +119,36 @@ class osv_model(abstract):
             for nomenclature in nomenclatures
         ]
 
-        # Заполняем элементы ОСВ по транзакциям
+        # Проходим по всем транзакциям для расчета начального остатка
         for transaction in transactions:
-            # Проверяем, подходит ли транзакция для включения в ОСВ
+            # Проверяем, подходит ли транзакция для расчета начального остатка
+            is_correct_storage = transaction.storage.unique_code == self.__storage.unique_code
+            is_before_start_date = transaction.date < self.__start_date
+            
+            if not (is_correct_storage and is_before_start_date):
+                continue
+                
+            try:
+                item = self.find_unit(transaction.product)
+                amount = transaction.amount
+                
+                # Корректируем количество по коэффициенту диапазона
+                if transaction.measure.base_measure and transaction.measure.base_measure == item.measure:
+                    amount *= transaction.measure.coef
+                
+                # Обновляем начальный остаток (все транзакции до start_date)
+                item.start_amount += amount
+                
+                # Также обновляем конечный остаток (он должен включать все транзакции)
+                item.finish_amount += amount
+            
+            except operation_exception:
+                # Пропускаем транзакции для номенклатур, которых нет в ОСВ
+                continue
+
+        # Теперь проходим по транзакциям в выбранном диапазоне дат
+        for transaction in transactions:
+            # Проверяем, подходит ли транзакция для включения в период ОСВ
             is_correct_storage = transaction.storage.unique_code == self.__storage.unique_code
             is_in_date_range = self.__start_date <= transaction.date <= self.__finish_date
             
@@ -136,16 +163,13 @@ class osv_model(abstract):
                 if transaction.measure.base_measure and transaction.measure.base_measure == item.measure:
                     amount *= transaction.measure.coef
                 
-                # Обновляем показатели
-                if transaction.date <= self.__start_date:
-                    item.start_amount += amount
+                # Обновляем показатели для периода ОСВ
+                if transaction.amount > 0:
+                    item.add += amount
+                else:
+                    item.sub += abs(amount)  # Берем модуль для расхода
                 
-                if transaction.date >= self.__start_date:
-                    if transaction.amount > 0:
-                        item.add += amount
-                    else:
-                        item.sub += amount
-                
+                # Обновляем конечный остаток
                 item.finish_amount += amount
             
             except operation_exception:

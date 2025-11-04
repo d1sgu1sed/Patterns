@@ -13,7 +13,7 @@ from Src.start_service import start_service
 
 flask_app = connexion.FlaskApp(__name__)
 app = flask_app.app
-data_service = start_service() 
+strt_service = start_service() 
 data = None
 responses_factory = factory_entities()
 
@@ -98,7 +98,7 @@ def get_report(code, start, end):
     if storage is None:
         return "Неправильный код склада!"
     
-    osv = data_service.create_osv(start_date, finish_date, storage.unique_code)
+    osv = strt_service.create_osv(start_date, finish_date, storage.unique_code)
     
     # Задаем желаемый порядок полей для CSV
     field_order = ["name", "measure_id", "nomenclature_id", "start_amount", "finish_amount", "add", "sub"]
@@ -114,7 +114,7 @@ def get_report(code, start, end):
 """
 @app.route("/dump", methods=['POST'])
 def dump():
-    res = data_service.dump("settings2.json")
+    res = strt_service.dump("settings2.json")
     
     if res:
         result = json.dumps({"status": "success", "message": "Info saved to file!"})
@@ -140,6 +140,6 @@ def method_not_allowed(error):
 
 
 if __name__ == '__main__':
-    data_service.start()
-    data = data_service.reposity.data
+    strt_service.start()
+    data = strt_service.reposity.data
     app.run(host="0.0.0.0", port=8080)
