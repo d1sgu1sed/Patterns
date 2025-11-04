@@ -119,13 +119,10 @@ class osv_model(abstract):
             for nomenclature in nomenclatures
         ]
 
-        # Проходим по всем транзакциям для расчета начального остатка
+        # Обрабатываем все транзакции в одном цикле
         for transaction in transactions:
-            # Проверяем, подходит ли транзакция для расчета начального остатка
-            is_correct_storage = transaction.storage.unique_code == self.__storage.unique_code
-            is_before_start_date = transaction.date < self.__start_date
-            
-            if not (is_correct_storage and is_before_start_date):
+            # Проверяем, подходит ли транзакция для текущего склада
+            if transaction.storage.unique_code != self.__storage.unique_code:
                 continue
                 
             try:
@@ -136,42 +133,24 @@ class osv_model(abstract):
                 if transaction.measure.base_measure and transaction.measure.base_measure == item.measure:
                     amount *= transaction.measure.coef
                 
-                # Обновляем начальный остаток (все транзакции до start_date)
-                item.start_amount += amount
+                # Определяем тип транзакции по дате
+                if transaction.date < self.__start_date:
+                    # Транзакция до начала периода - влияет только на начальный и конечный остаток
+                    item.start_amount += amount
+                    item.finish_amount += amount
+                    
+                elif self.__start_date <= transaction.date <= self.__finish_date:
+                    # Транзакция в периоде ОСВ
+                    if transaction.amount > 0:
+                        item.add += amount
+                    else:
+                        item.sub += abs(amount)  # Берем модуль для расхода
+                    
+                    # Обновляем конечный остаток
+                    item.finish_amount += amount
                 
-                # Также обновляем конечный остаток (он должен включать все транзакции)
-                item.finish_amount += amount
-            
-            except operation_exception:
-                # Пропускаем транзакции для номенклатур, которых нет в ОСВ
-                continue
-
-        # Теперь проходим по транзакциям в выбранном диапазоне дат
-        for transaction in transactions:
-            # Проверяем, подходит ли транзакция для включения в период ОСВ
-            is_correct_storage = transaction.storage.unique_code == self.__storage.unique_code
-            is_in_date_range = self.__start_date <= transaction.date <= self.__finish_date
-            
-            if not (is_correct_storage and is_in_date_range):
-                continue
+                # Транзакции после finish_date игнорируются
                 
-            try:
-                item = self.find_unit(transaction.product)
-                amount = transaction.amount
-                
-                # Корректируем количество по коэффициенту диапазона
-                if transaction.measure.base_measure and transaction.measure.base_measure == item.measure:
-                    amount *= transaction.measure.coef
-                
-                # Обновляем показатели для периода ОСВ
-                if transaction.amount > 0:
-                    item.add += amount
-                else:
-                    item.sub += abs(amount)  # Берем модуль для расхода
-                
-                # Обновляем конечный остаток
-                item.finish_amount += amount
-            
             except operation_exception:
                 # Пропускаем транзакции для номенклатур, которых нет в ОСВ
                 continue
