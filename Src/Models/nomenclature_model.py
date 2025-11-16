@@ -14,7 +14,7 @@ class nomenclature_model(abstract):
         measure (measure_model): Единица измерения.
     """
 
-    __full_name: str
+    __full_name: str = ""
     __group: nomenclature_group_model
     __measure: measure_model
 
