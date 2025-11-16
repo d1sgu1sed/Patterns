@@ -239,7 +239,7 @@ class Test_osv_unit_model(unittest.TestCase):
         group = nomenclature_group_model("Тестовая группа")
         measure = measure_model.create("шт")
         nomenclature = nomenclature_model.create("Тестовый продукт", group, measure)
-        unit = osv_unit_model.create_default("",nomenclature, measure)
+        unit = osv_unit_model.create_default("", nomenclature, measure)
         
         # Действие - последовательное изменение значений
         unit.start_amount = 100.0

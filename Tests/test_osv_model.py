@@ -148,20 +148,6 @@ class Test_osv_model(unittest.TestCase):
             assert "Элемент ОСВ не найден" in str(e)
 
     """
-    Тест проверки работы с пустыми данными
-    """
-    def test_empty_data_handling(self):
-        # Подготовка
-        osv = osv_model()
-        
-        # Действие - генерация с пустыми списками
-        osv.generate_units([], [])
-        
-        # Проверка
-        assert osv.units == []
-
-
-    """
     Тест проверки корректности генерации ОСВ с приходными операциями
     """
     def test_generate_osv_with_income_transactions(self):

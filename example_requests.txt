@@ -1,0 +1,26 @@
+1:
+curl -X POST "http://localhost:8080/api/filter/nomenclature"
+-H "Content-Type: application/json"
+-d '{
+    "filters": [
+      {
+        "filter_name": "measure.name",
+        "value": "Грамм",
+        "condition": "LIKE"
+      }
+    ],
+    "sorting": ["name"]
+  }'
+
+2: curl -X POST "http://localhost:8080/report/ndet5a2x-6f2a-nv5z-f561-md7vb421/20-10-2025%2010:00:00/22-10-2025%2010:00:00" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "filters": [
+      {
+        "filter_name": "nomenclature.name",
+        "value": "Мука",
+        "type": "LIKE"
+      }
+    ],
+    "sorting": ["nomenclature.name"]
+  }'
