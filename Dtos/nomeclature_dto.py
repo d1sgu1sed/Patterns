@@ -11,7 +11,7 @@ class nomenclature_dto(abstract_dto):
         "id":"0c101a7e-5934-4155-83a6-d2c388fcc11a"
     """
     __measure_id:str = ""
-    __nomenclature_model_id:str = ""
+    __group_id:str = ""
 
 
     @property
@@ -24,10 +24,10 @@ class nomenclature_dto(abstract_dto):
         self.__measure_id = value
 
     @property
-    def nomenclature_model_id(self) -> str:
-        return self.__nomenclature_model_id
+    def group_id(self) -> str:
+        return self.__group_id
 
-    @nomenclature_model_id.setter
-    def nomenclature_model_id(self, value: str):
+    @group_id.setter
+    def group_id(self, value: str):
         validator.validate(value, str)
-        self.__nomenclature_model_id = value
+        self.__group_id = value

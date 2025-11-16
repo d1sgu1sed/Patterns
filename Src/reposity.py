@@ -6,11 +6,22 @@ class reposity:
     Хранилище данных
     """
     __data: dict = {}
+    __keys: list = []
+
+    def __init__(self):
+        keys = [key for key in self.__dir__() if key.endswith('_key')]
+        for key in keys: 
+            key_method = getattr(self, key)
+            self.__keys.append(key_method())
 
     @property
     def data(self):
         return self.__data
     
+    @property
+    def keys(self):
+        return self.__keys
+
     """
     Ключ для единий измерений
     """
@@ -38,11 +49,17 @@ class reposity:
     def recipes_key():
         return 'recipe'
 
+    @staticmethod
+    def storage_key():
+        return "storage"
+
+    @staticmethod
+    def transaction_key():
+        return "transaction"
+
     """
     Инициализация
     """
     def initalize(self):
-        keys = [key for key in self.__dir__() if key.endswith('_key')]
-        for key in keys:
-            key_method = getattr(self, key)
-            self.__data[key_method()] = []
+        for key in self.__keys:
+            self.__data[key] = []

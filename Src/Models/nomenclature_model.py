@@ -79,7 +79,7 @@ class nomenclature_model(abstract):
         validator.validate(dto, nomenclature_dto)
         validator.validate(cache, dict)
         measure = cache.get(dto.measure_id, None)
-        group = cache.get(dto.nomenclature_model_id, None)
+        group = cache.get(dto.group_id, None)
         item = nomenclature_model.create(dto.name, group, measure)
         item.unique_code = dto.id
         return item
@@ -90,7 +90,7 @@ class nomenclature_model(abstract):
     def to_dto(self):
         item = nomenclature_dto()
         item.name = self.name
-        item.nomenclature_model_id = self.__group.unique_code
+        item.group_id = self.__group.unique_code
         item.measure_id = self.__measure.unique_code
         item.id = self.unique_code
         return item
