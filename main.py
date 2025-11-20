@@ -4,7 +4,11 @@ import connexion
 from flask import abort, jsonify
 import flask
 
+from Dtos.filter_dto import filter_dto
+from Dtos.filter_sort_dto import filter_sort_dto
+from Src.Core.prototype import prototype
 from Src.Logics.factory_entities import factory_entities
+from Src.Logics.prototype_osv import prototype_osv
 from Src.Logics.response_json import response_json
 from Src.Logics.response_md import response_md
 from Src.Logics.response_xml import response_xml
@@ -108,6 +112,76 @@ def get_report(code, start, end):
     return flask.Response(response=result, status=200, 
                content_type="text/plain;charset=utf-8")
 
+"""
+Фильтровать элементы указанной доменной модели по DTO фильтра
+"""
+@app.route("/api/filter/<string:model_type>", methods=['POST'])
+def filter_domain(model_type):
+    if data is None or model_type not in data.keys():
+        abort(404)
+
+    payload = flask.request.get_json()
+    if payload is None:
+        return jsonify({
+            "status": "error",
+            "message": "Тело запроса должно содержать JSON с параметрами фильтра."
+        }), 400
+
+
+    filter_sort_data = filter_sort_dto.create(payload)
+    proto = prototype_osv(data[model_type])
+    for filter in filter_sort_data.filters:
+        proto = prototype.filter(proto, filter)
+
+    # Отдаём отфильтрованный результат в JSON
+    result_format = factory_entities().create("json")()
+    result = result_format.generate(proto.data)
+    return result
+
+"""
+Получить отчет по оборотной ведомости для указанного склада и периода с учетом DTO фильтрации (POST)
+"""
+@app.route("/report/<string:code>/<string:start>/<string:end>", methods=['POST'])
+def get_report_osv_filtered(code, start, end):
+    result_format = factory_entities().create("csv")()
+    res = data[reposity.storage_key()]
+    storage = None
+
+    try:
+        start_date = datetime.strptime(start, "%d-%m-%Y %H:%M:%S")
+        finish_date = datetime.strptime(end, "%d-%m-%Y %H:%M:%S")
+    except Exception:
+        return "Неправильный формат дат!"
+
+    for item in res:
+        if item.unique_code == code:
+            storage = item
+            break
+
+    if storage is None:
+        return "Неправильный код склада!"
+
+    osv = strt_service.create_osv(start_date, finish_date, storage.unique_code)
+
+    payload = flask.request.get_json()
+    if payload is not None:
+        filter_sort_data = filter_sort_dto().create(payload)
+
+        proto = prototype_osv(osv.units)
+        for filter in filter_sort_data.filters:
+            proto = prototype_osv.filter(proto, filter)
+
+        filtered_units = proto.data
+
+        # Формируем модель ОСВ с отфильтрованными строками
+        osv.units = filtered_units
+
+    field_order = ["name", "measure_id", "nomenclature_id",
+                   "start_amount", "finish_amount", "add", "sub"]
+    result = result_format.generate(osv.units, field_order)
+    return flask.Response(response=result,
+                          status=200,
+                          content_type="text/plain;charset=utf-8")
 
 """
 Выполнить дамп данных в файл
