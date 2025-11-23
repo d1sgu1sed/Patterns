@@ -1,3 +1,4 @@
+from datetime import datetime
 import json
 import os
 from Src.Models.company_model import company_model
@@ -17,7 +18,7 @@ class settings_manager:
     __instance = False
     __filename: str = ''
     __settings: settings_model = None
-    __global_attrs: list = ['response_format', 'company']
+    __global_attrs: list = ['response_format', 'company', 'blocking_date']
     __list_attrs: list = ['company']
     
     def __init__(self, filename: str):
@@ -87,6 +88,7 @@ class settings_manager:
         self.__settings = settings_model()
         self.__settings.company = company_model()
         self.__settings.company.name = "Рога и копыта" 
+        self.__settings.blocking_date = "01-01-1990 00:00:00"
     
     """
     Функция конвертации из dict в settings_model
