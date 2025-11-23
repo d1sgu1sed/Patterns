@@ -13,7 +13,7 @@ class measure_model(abstract):
     __base_measure: 'measure_model' = None
     __coef: float
 
-    def __init__(self, name: str, coef: float | int = 1, base_measure = None):
+    def __init__(self, name: str = "", coef: float | int = 1, base_measure = None):
         super().__init__(name)
         if base_measure is not None:
             validator.validate(base_measure, measure_model)

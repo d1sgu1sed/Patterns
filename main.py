@@ -196,6 +196,85 @@ def dump():
     else:
         result = json.dumps({"status": "error", "message": "Error with saving info!"})
         return result, 400
+    
+"""
+Изменить дату блокировки в настройках (Settings_model / settings.json)
+Формат даты: "дд-мм-ГГГГ чч:мм:cc"
+Пример тела запроса:
+{
+   "blocking_date": "20-10-2025 14:00:00"
+}
+"""
+@app.route("/api/blocking_date", methods=['POST'])
+def set_blocking_date():
+    payload = flask.request.get_json()
+    if payload is None or "blocking_date" not in payload:
+        return jsonify({
+            "status": "error",
+            "message": "Тело запроса должно содержать JSON с полем 'blocking_date'."
+        }), 400
+
+    date_str = payload["blocking_date"]
+
+    try:
+        new_date = datetime.strptime(date_str, "%d-%m-%Y %H:%M:%S")
+    except ValueError:
+        return jsonify({
+            "status": "error",
+            "message": "Неправильный формат даты. Используйте 'дд-мм-ГГГГ чч:мм:cc'."
+        }), 400
+
+    # 1. Меняем дату блокировки в сервисе (это вызовет пересчёт остатков)
+    strt_service.blocking_date = new_date
+
+    return jsonify({
+        "status": "success",
+        "blocking_date": date_str
+    }), 200
+
+"""
+Получить текущую дату блокировки
+"""
+@app.route("/api/blocking_date", methods=['GET'])
+def get_blocking_date():
+    # Сначала смотрим, не установлена ли дата блокировки в сервисе
+    if strt_service.blocking_date is not None:
+        date_str = strt_service.blocking_date.strftime("%d-%m-%Y %H:%M:%S")
+        return jsonify({"blocking_date": date_str}), 200
+
+    return jsonify({"blocking_date": date_str}), 200
+
+"""
+Получить остатки на указанную дату.
+Формат даты в URL: "дд-мм-ГГГГ чч:мм:cc"
+Пример: /api/balance/20-10-2025%2014:00:00
+"""
+@app.route("/api/balance/<string:date_str>", methods=['GET'])
+def get_balance_on_date(date_str: str):
+    try:
+        target_date = datetime.strptime(date_str, "%d-%m-%Y %H:%M:%S")
+    except ValueError:
+        return jsonify({
+            "status": "error",
+            "message": "Неправильный формат даты. Используйте 'дд-мм-ГГГГ чч:мм:cc'."
+        }), 400
+
+    strt_service.blocking_date = target_date
+    balances = getattr(strt_service, "balance_history", [])
+
+    result = []
+    for bal in balances:
+        result.append({
+            "storage_id": bal.storage.unique_code,
+            "storage_name": bal.storage.name,
+            "nomenclature_id": bal.nomenclature.unique_code,
+            "nomenclature_name": bal.nomenclature.name,
+            "measure_id": bal.measure.unique_code,
+            "measure_name": bal.measure.name,
+            "amount": bal.amount
+        })
+
+    return jsonify(result), 200
 
 
 @app.errorhandler(404)
