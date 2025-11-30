@@ -1,14 +1,18 @@
 from datetime import datetime
 import json
 import os
+from Dtos.balance_dto import balance_dto
 from Dtos.filter_dto import filter_dto
 from Dtos.ingredient_dto import ingredient_dto
 from Dtos.measure_dto import measure_dto
 from Dtos.nomenclature_group_dto import nomenclature_group_dto
 from Dtos.nomeclature_dto import nomenclature_dto
+from Dtos.recipe_dto import recipe_dto
 from Dtos.storage_dto import storage_dto
 from Dtos.transaction_dto import transaction_dto
 from Src.Converters.convert_factory import convert_factory
+from Src.Core.event_type import event_type
+from Src.Core.observe_service import observe_service
 from Src.Core.validator import argument_exception, operation_exception, validator
 from Src.Logics.prototype_osv import prototype_osv
 from Src.Models.balance_model import balance_model
@@ -29,11 +33,23 @@ class start_service:
     __default_recipe: recipe_model
     __blocking_date: datetime = None
     __balance_history: list[balance_model] = []
+    __start_service_initialized = False 
     __filename: str = ""
     __cache = {}
+    __references = {
+        reposity.transaction_key():[transaction_dto,transaction_model],
+        reposity.groups_key():[nomenclature_group_dto, nomenclature_group_model],
+        reposity.measure_key():[measure_dto,measure_model],
+        reposity.storage_key():[storage_dto,storage_model],
+        reposity.nomenclature_key():[nomenclature_dto,nomenclature_model],
+        reposity.recipes_key():[recipe_dto, recipe_model]
+        }
 
     def __init__(self):
+        if self.__start_service_initialized:
+            return
         self.__reposity.initalize()
+        self.__start_service_initialized = True
 
     """
     Реализация Singleton
@@ -83,6 +99,7 @@ class start_service:
         self.__blocking_date = value
         # После изменения даты блокировки пересчитываем остатки
         self.create_stocks()
+        observe_service.create_event(event_type.change_block_period(),{"block_period":self.__blocking_date})
 
     """
     Пересчитывает остатки (balance_history) на дату self.__blocking_date
@@ -327,6 +344,13 @@ class start_service:
                 data[key] = []
                 for i in self.__reposity.data[key]:
                     data[key].append(converter.convert(i))
+
+            # Добавляем balance_history в дамп
+            if self.__balance_history:
+                data[reposity.balance_key()] = []
+                for balance in self.__balance_history:
+                    data[reposity.balance_key()].append(converter.convert(balance))
+
             with open(filename, 'w', encoding="UTF-8") as file_instance:
                 json.dump(data, file_instance, ensure_ascii=False, indent=4)
             return True
@@ -337,11 +361,69 @@ class start_service:
     """
     Сохранить элемент в репозитории
     """
-    def __save_item(self, key:str, dto, item):
+    def __save_item(self, key: str, dto, item):
         validator.validate(key, str)
+        # Если уже есть в кэше — не добавляем второй раз
+        if dto.id in self.__cache:
+            return
+
         item.unique_code = dto.id
-        self.__cache.setdefault(dto.id, item)
+        self.__cache[dto.id] = item
         self.__reposity.data[key].append(item)
+
+        
+    """
+    Добавить объект
+    """
+    def add_reference(self, reference_type:str, data:dict):
+        validator.validate(data, dict)
+        validator.validate(reference_type, str)
+        
+        reference_dto = self.__references[reference_type][0]
+        model = self.__references[reference_type][1]
+        dto = reference_dto().create(data)
+        item = model.from_dto(dto, self.__cache )
+        
+        if dto.id in self.__cache:
+            return False
+        
+        self.__save_item(reference_type, dto, item )
+        
+        return True
+
+    """
+    Изменить объект
+    """
+    def change_reference(self, reference_type:str, data:dict):
+        validator.validate(data, dict)
+        validator.validate(reference_type, str)
+        
+        reference_dto = self.__references[reference_type][0]
+        model = self.__references[reference_type][1]
+        dto = reference_dto().create(data)
+        item = model.from_dto(dto, self.__cache )
+        
+        reference_proto = prototype_osv(self.reposity.data[reference_type])
+        
+        filt_dto = filter_dto()
+        filt_dto.field_name = "unique_code"
+        filt_dto.value = dto.id
+        filt_dto.condition = "EQUALS"
+        
+        references = reference_proto.filter(reference_proto, filt_dto).data
+        
+        if len(references)==0:
+            return False
+        
+        fields = list(filter(lambda x: not x.startswith("_") , dir(references[0])))
+        
+        for field in fields:
+            attribute = getattr(references[0].__class__,field)
+            if isinstance(attribute, property):
+                value = getattr(item, field)
+                setattr(references[0], field, value)
+                
+        return True
 
     def start(self):
         self.__filename = "settings.json"

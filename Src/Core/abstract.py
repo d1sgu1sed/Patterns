@@ -33,16 +33,29 @@ class abstract(abc.ABC):
     @property
     def unique_code(self) -> str:
         return self.__unique_code
-    
+
+    """
+    Алиас для unique_code (для совместимости с DTO)
+    """
+    @property
+    def id(self) -> str:
+        return self.__unique_code
+
     """
     Имя
     """
     @property
     def name(self) -> str:
         return self.__name
-    
+
     @unique_code.setter
     def unique_code(self, value: str):
+        validator.validate(value, str)
+        self.__unique_code = value.strip()
+
+    @id.setter
+    def id(self, value: str):
+        # Setter для алиаса id - устанавливает unique_code
         validator.validate(value, str)
         self.__unique_code = value.strip()
     

@@ -1,4 +1,5 @@
 from datetime import datetime
+from Dtos.balance_dto import balance_dto
 from Src.Core.abstract import abstract
 from Src.Core.validator import validator
 from Src.Models.measure_model import measure_model
@@ -89,3 +90,46 @@ class balance_model(abstract):
     def date(self, value: datetime):
         validator.validate(value, datetime)
         self.__date = value
+
+    """
+    Фабричный метод создания модели остатка
+    """
+    @staticmethod
+    def create(nomenclature: nomenclature_model, storage: storage_model,
+               measure: measure_model, amount: float, date: datetime) -> 'balance_model':
+        item = balance_model()
+        item.nomenclature = nomenclature
+        item.storage = storage
+        item.measure = measure
+        item.amount = amount
+        item.date = date
+        item.name = nomenclature.name
+        return item
+
+    """
+    Фабричный метод из Dto
+    """
+    @staticmethod
+    def from_dto(dto: balance_dto, cache: dict):
+        validator.validate(dto, balance_dto)
+        validator.validate(cache, dict)
+        nomenclature = cache.get(dto.nomenclature_id, None)
+        storage = cache.get(dto.storage_id, None)
+        measure = cache.get(dto.measure_id, None)
+
+        item = balance_model.create(nomenclature, storage, measure, dto.amount, dto.date)
+        item.unique_code = dto.id
+        return item
+
+    """
+    Функция перевода объекта в DTO
+    """
+    def to_dto(self):
+        item = balance_dto()
+        item.nomenclature_id = self.__nomenclature.unique_code
+        item.storage_id = self.__storage.unique_code
+        item.measure_id = self.__measure.unique_code
+        item.amount = self.__amount
+        item.date = self.__date
+        item.id = self.unique_code
+        return item
