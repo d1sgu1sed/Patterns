@@ -5,6 +5,7 @@ from Dtos.storage_dto import storage_dto
 from Src.Core.abstract import abstract
 from Src.Core.validator import argument_exception, operation_exception, validator
 from Src.Logics.prototype_osv import prototype_osv
+from Src.Models.balance_model import balance_model
 from Src.Models.nomenclature_model import nomenclature_model
 from Src.Models.osv_unit_model import osv_unit_model
 from Src.Models.storage_model import storage_model
@@ -113,39 +114,69 @@ class osv_model(abstract):
     Функция создания элементов ОСВ по транзакциям
     """
     def generate_units(self, transactions: list[transaction_model], 
-                   nomenclatures: list[nomenclature_model]):
+                       nomenclatures: list[nomenclature_model],
+                       blocking_date: datetime = None,
+                       balance_history: list[balance_model] = None):
+        if balance_history is None:
+            balance_history = []
+
         # Инициализируем элементы ОСВ
         self.__units = [
-            osv_unit_model.create_default(nomenclature.name, nomenclature,\
-                                        nomenclature.measure.base_measure or nomenclature.measure)
+            osv_unit_model.create_default(
+                nomenclature.name,
+                nomenclature,
+                nomenclature.measure.base_measure or nomenclature.measure
+            )
             for nomenclature in nomenclatures
         ]
 
-        # Фильтр на склад
+        # 1. Сначала подмешиваем остатки закрытого периода
+        if blocking_date is not None and balance_history:
+            for bal in balance_history:
+                # интересует только наш склад
+                if bal.storage.unique_code != self.__storage.unique_code:
+                    continue
+                try:
+                    item = self.find_unit(bal.nomenclature)
+                except operation_exception:
+                    # нет такой номенклатуры в ОСВ
+                    continue
+
+                # amount в balance_history уже приведён к нужной единице
+                item.start_amount += bal.amount
+                item.finish_amount += bal.amount
+
+        # 2. Фильтры по складу и датам для транзакций
         filter_storage = filter_dto()
         filter_storage.field_name = "storage.unique_code"
         filter_storage.value = str(self.__storage.unique_code)
         filter_storage.condition = "EQUALS"
         
-        # Фильтр на количество продукции
         filter_amount = filter_dto()
         filter_amount.field_name = "date"
         filter_amount.value = self.__start_date
         filter_amount.condition = "LESS"
         
-        # Фильтр на приходы и расходы
         filter_add_sub = filter_dto()
         filter_add_sub.field_name = "date"
         filter_add_sub.value = (self.__start_date, self.__finish_date)
         filter_add_sub.condition = "IN RANGE"
-
         
         proto_osv = prototype_osv(transactions)
         proto_storage = proto_osv.filter(proto_osv, filter_storage)
+
+        # 3. Отсекаем транзакции, которые уже попали в закрытый период
+        if blocking_date is not None:
+            filter_after_blocking = filter_dto()
+            filter_after_blocking.field_name = "date"
+            filter_after_blocking.value = blocking_date
+            filter_after_blocking.condition = "MORE"
+            proto_storage = proto_storage.filter(proto_storage, filter_after_blocking)
+
         proto_amount = proto_storage.filter(proto_storage, filter_amount)
         proto_add_sub = proto_storage.filter(proto_storage, filter_add_sub)
         
-        # Обрабатываем все транзакции в одном цикле
+        # 4. Обрабатываем транзакции после даты блокировки
         for transaction in proto_storage.data:
             try:
                 item = self.find_unit(transaction.product)
@@ -155,24 +186,21 @@ class osv_model(abstract):
                 if transaction.measure.base_measure and transaction.measure.base_measure == item.measure:
                     amount *= transaction.measure.coef
                 
-                # Определяем тип транзакции по дате
+                # Транзакции после blocking_date, но до start_date
                 if transaction in proto_amount.data:
-                    # Транзакция до начала периода - влияет только на начальный и конечный остаток
                     item.start_amount += amount
                     item.finish_amount += amount
                     
+                # Транзакции в периоде ОСВ
                 elif transaction in proto_add_sub.data:
-                    # Транзакция в периоде ОСВ
                     if transaction.amount > 0:
                         item.add += amount
                     else:
-                        item.sub += abs(amount)  # Берем модуль для расхода
+                        item.sub += abs(amount)
                     
-                    # Обновляем конечный остаток
                     item.finish_amount += amount
                 
-                # Транзакции после finish_date игнорируются
-                
+                # Транзакции после finish_date автоматически игнорируются
+
             except operation_exception:
-                # Пропускаем транзакции для номенклатур, которых нет в ОСВ
                 continue

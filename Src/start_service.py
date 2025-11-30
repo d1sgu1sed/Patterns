@@ -1,6 +1,7 @@
 from datetime import datetime
 import json
 import os
+from Dtos.filter_dto import filter_dto
 from Dtos.ingredient_dto import ingredient_dto
 from Dtos.measure_dto import measure_dto
 from Dtos.nomenclature_group_dto import nomenclature_group_dto
@@ -9,6 +10,8 @@ from Dtos.storage_dto import storage_dto
 from Dtos.transaction_dto import transaction_dto
 from Src.Converters.convert_factory import convert_factory
 from Src.Core.validator import argument_exception, operation_exception, validator
+from Src.Logics.prototype_osv import prototype_osv
+from Src.Models.balance_model import balance_model
 from Src.Models.osv_model import osv_model
 from Src.Models.storage_model import storage_model
 from Src.Models.transaction_model import transaction_model
@@ -24,6 +27,8 @@ class start_service:
     __reposity: reposity = reposity()
     __instance = None
     __default_recipe: recipe_model
+    __blocking_date: datetime = None
+    __balance_history: list[balance_model] = []
     __filename: str = ""
     __cache = {}
 
@@ -63,7 +68,91 @@ class start_service:
             self.__filename = full_filename.strip()
         else:
             raise argument_exception(f'Не найден файл настроек {full_filename}')
-        
+    
+    @property
+    def balance_history(self) -> list[balance_model]:
+        return self.__balance_history
+    
+    @property
+    def blocking_date(self) -> datetime:
+        return self.__blocking_date
+
+    @blocking_date.setter
+    def blocking_date(self, value: datetime):
+        validator.validate(value, datetime)
+        self.__blocking_date = value
+        # После изменения даты блокировки пересчитываем остатки
+        self.create_stocks()
+
+    """
+    Пересчитывает остатки (balance_history) на дату self.__blocking_date
+    по всем складам и транзакциям.
+    """
+    def create_stocks(self):
+        if self.__blocking_date is None:
+            self.__balance_history = []
+            return
+
+        data = self.__reposity.data
+        transactions: list[transaction_model] = data.get(reposity.transaction_key(), [])
+        storages: list[storage_model] = data.get(reposity.storage_key(), [])
+
+        if not transactions or not storages:
+            self.__balance_history = []
+            return
+
+        proto_all = prototype_osv(transactions)
+        balances: list[balance_model] = []
+
+        for storage in storages:
+            # фильтр по складу
+            filter_storage = filter_dto()
+            filter_storage.field_name = "storage.unique_code"
+            filter_storage.value = str(storage.unique_code)
+            filter_storage.condition = "EQUALS"
+
+            proto_storage = proto_all.filter(proto_all, filter_storage)
+
+            # все транзакции ДО даты блокировки (строго <)
+            filter_date = filter_dto()
+            filter_date.field_name = "date"
+            filter_date.value = self.__blocking_date
+            filter_date.condition = "LESS"
+
+            proto_before_block = proto_storage.filter(proto_storage, filter_date)
+
+            balances_by_nom = {}
+
+            for tr in proto_before_block.data:
+                nomenclature = tr.product
+                # целевая единица измерения — как в ОСВ
+                target_measure = nomenclature.measure.base_measure or nomenclature.measure
+                key = (nomenclature.unique_code, storage.unique_code)
+
+                if key not in balances_by_nom:
+                    bal = balance_model()
+                    bal.nomenclature = nomenclature
+                    bal.storage = storage
+                    bal.measure = target_measure
+                    bal.amount = 0.0
+                    bal.date = self.__blocking_date
+                    balances_by_nom[key] = bal
+
+                bal = balances_by_nom[key]
+
+                amount = tr.amount
+                # переводим из единицы транзакции в target_measure
+                if tr.measure.base_measure and tr.measure.base_measure == target_measure:
+                    amount *= tr.measure.coef
+
+                bal.amount += amount
+
+            balances.extend(balances_by_nom.values())
+
+        self.__balance_history = balances
+
+
+    
     """
     Функция загрузки рецепта из файла
     """
@@ -217,8 +306,14 @@ class start_service:
         storage = self.__cache.get(storage_id, None)
         validator.validate(storage, storage_model)
         osv = osv_model.create(start, end, storage)
-        osv.generate_units(transactions, nomenclatures)
+        osv.generate_units(
+            transactions,
+            nomenclatures,
+            blocking_date=self.__blocking_date,
+            balance_history=self.__balance_history,
+        )
         return osv
+
     
     """
     Вывод данных в файл
