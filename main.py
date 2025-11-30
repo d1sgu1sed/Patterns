@@ -7,6 +7,8 @@ import flask
 from Dtos.filter_dto import filter_dto
 from Dtos.filter_sort_dto import filter_sort_dto
 from Src.Core.prototype import prototype
+from Src.Core.reference_checker import reference_checker
+from Src.Core.settings_processor import settings_processor
 from Src.Logics.factory_entities import factory_entities
 from Src.Logics.prototype_osv import prototype_osv
 from Src.Logics.response_json import response_json
@@ -14,12 +16,16 @@ from Src.Logics.response_md import response_md
 from Src.Logics.response_xml import response_xml
 from Src.reposity import reposity
 from Src.start_service import start_service
+from Src.Logics.reference_service import reference_service
 
 flask_app = connexion.FlaskApp(__name__)
 app = flask_app.app
-strt_service = start_service() 
+strt_service = start_service()
 data = None
 responses_factory = factory_entities()
+_ = reference_checker()
+_ = settings_processor()
+ref_service = reference_service()
 
 
 """
@@ -275,6 +281,185 @@ def get_balance_on_date(date_str: str):
         })
 
     return jsonify(result), 200
+
+"""
+Получить один элемент справочника по ID
+GET /api/<reference_type>/<id>
+Поддерживаемые типы: nomenclature, measure, groups, storage
+"""
+@app.route("/api/<string:reference_type>/<string:id>", methods=['GET'])
+def get_reference_by_id(reference_type: str, id: str):
+    # Проверка допустимого типа справочника
+    allowed_types = [reposity.nomenclature_key(), reposity.measure_key(),
+                     reposity.groups_key(), reposity.storage_key()]
+
+    if reference_type not in allowed_types:
+        return jsonify({
+            "status": "error",
+            "message": f"Неизвестный тип справочника: {reference_type}. Допустимые типы: {', '.join(allowed_types)}"
+        }), 400
+
+    if data is None or reference_type not in data.keys():
+        return jsonify({
+            "status": "error",
+            "message": "Данные не загружены"
+        }), 500
+
+    # Поиск элемента по ID с использованием prototype
+    filter_by_id = filter_dto()
+    filter_by_id.field_name = "unique_code"
+    filter_by_id.value = id
+    filter_by_id.condition = "EQUALS"
+
+    proto = prototype_osv(data[reference_type])
+    filtered = proto.filter(proto, filter_by_id)
+
+    if len(filtered.data) == 0:
+        return jsonify({
+            "status": "error",
+            "message": f"Элемент с ID '{id}' не найден в справочнике '{reference_type}'"
+        }), 404
+
+    # Преобразование объекта в JSON
+    item = filtered.data[0]
+    result_format = factory_entities().create("json")()
+    result = result_format.generate([item])
+
+    return result, 200
+
+"""
+Добавить новый элемент в справочник
+PUT /api/<reference_type>
+Тело запроса: JSON с данными элемента
+Пример для номенклатуры:
+{
+    "name": "Продукт",
+    "measure_id": "uuid",
+    "group_id": "uuid",
+    "id": "uuid" (опционально, будет сгенерирован если не указан)
+}
+"""
+@app.route("/api/<string:reference_type>", methods=['PUT'])
+def add_reference(reference_type: str):
+    # Проверка допустимого типа справочника
+    allowed_types = [reposity.nomenclature_key(), reposity.measure_key(),
+                     reposity.groups_key(), reposity.storage_key()]
+
+    if reference_type not in allowed_types:
+        return jsonify({
+            "status": "error",
+            "message": f"Неизвестный тип справочника: {reference_type}. Допустимые типы: {', '.join(allowed_types)}"
+        }), 400
+
+    payload = flask.request.get_json()
+    if payload is None:
+        return jsonify({
+            "status": "error",
+            "message": "Тело запроса должно содержать JSON с данными элемента"
+        }), 400
+
+    try:
+        result = ref_service.add_reference(reference_type, payload)
+
+        if result:
+            return jsonify({
+                "status": "success",
+                "message": f"Элемент успешно добавлен в справочник '{reference_type}'",
+                "id": payload.get("id", "")
+            }), 201
+        else:
+            return jsonify({
+                "status": "error",
+                "message": "Не удалось добавить элемент. Возможно, элемент с таким ID уже существует"
+            }), 400
+
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": f"Ошибка при добавлении элемента: {str(e)}"
+        }), 500
+
+"""
+Изменить существующий элемент справочника
+PATCH /api/<reference_type>
+Тело запроса: JSON с данными элемента (обязательно поле "id")
+"""
+@app.route("/api/<string:reference_type>", methods=['PATCH'])
+def update_reference(reference_type: str):
+    # Проверка допустимого типа справочника
+    allowed_types = [reposity.nomenclature_key(), reposity.measure_key(),
+                     reposity.groups_key(), reposity.storage_key()]
+
+    if reference_type not in allowed_types:
+        return jsonify({
+            "status": "error",
+            "message": f"Неизвестный тип справочника: {reference_type}. Допустимые типы: {', '.join(allowed_types)}"
+        }), 400
+
+    payload = flask.request.get_json()
+    if payload is None:
+        return jsonify({
+            "status": "error",
+            "message": "Тело запроса должно содержать JSON с данными элемента"
+        }), 400
+
+    if "id" not in payload:
+        return jsonify({
+            "status": "error",
+            "message": "Поле 'id' обязательно для изменения элемента"
+        }), 400
+
+    try:
+        result = ref_service.change_reference(reference_type, payload)
+
+        if result:
+            return jsonify({
+                "status": "success",
+                "message": f"Элемент с ID '{payload['id']}' успешно изменен",
+                "id": payload["id"]
+            }), 200
+        else:
+            return jsonify({
+                "status": "error",
+                "message": f"Элемент с ID '{payload['id']}' не найден в справочнике '{reference_type}'"
+            }), 404
+
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": f"Ошибка при изменении элемента: {str(e)}"
+        }), 500
+
+"""
+Удалить элемент из справочника
+DELETE /api/<reference_type>/<id>
+"""
+@app.route("/api/<string:reference_type>/<string:id>", methods=['DELETE'])
+def delete_reference(reference_type: str, id: str):
+    # Проверка допустимого типа справочника
+    allowed_types = [reposity.nomenclature_key(), reposity.measure_key(),
+                     reposity.groups_key(), reposity.storage_key()]
+
+    if reference_type not in allowed_types:
+        return jsonify({
+            "status": "error",
+            "message": f"Неизвестный тип справочника: {reference_type}. Допустимые типы: {', '.join(allowed_types)}"
+        }), 400
+
+    try:
+        result = ref_service.delete_reference(reference_type, id)
+
+        if result:
+            return jsonify({
+                "status": "success",
+                "message": f"Элемент с ID '{id}' успешно удален из справочника '{reference_type}'"
+            }), 200
+
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": f"Ошибка при удалении элемента: {str(e)}"
+        }), 400
 
 
 @app.errorhandler(404)
