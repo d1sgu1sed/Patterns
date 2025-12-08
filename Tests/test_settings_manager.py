@@ -10,7 +10,7 @@ class Test_settings_manager(unittest.TestCase):
     """
     def test_load(self):
         # подготовка
-        filename = '/home/ivan/Рабочий стол/Patterns/settings.json'
+        filename = '/home/ivan/Desktop/Patterns/settings.json'
         load_config = settings_manager(filename)
 
         # действие
@@ -26,7 +26,7 @@ class Test_settings_manager(unittest.TestCase):
     """
     def test_class_equals(self):
         # подготовка
-        filename = '/home/ivan/Рабочий стол/Patterns/settings.json'
+        filename = '/home/ivan/Desktop/Patterns/settings.json'
         load_config1 = settings_manager(filename)
         load_config2 = settings_manager(filename)
 
@@ -44,7 +44,7 @@ class Test_settings_manager(unittest.TestCase):
     """
     def test_loading_dict_settings(self):
         # подготовка
-        filename = '/home/ivan/Рабочий стол/Patterns/settings.json'
+        filename = '/home/ivan/Desktop/Patterns/settings.json'
         load_config: settings_manager = settings_manager(filename)
         sett: settings_model
 
