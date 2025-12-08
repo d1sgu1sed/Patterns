@@ -6,9 +6,13 @@ import flask
 
 from Dtos.filter_dto import filter_dto
 from Dtos.filter_sort_dto import filter_sort_dto
+from Src.Core.logger import logger
 from Src.Core.prototype import prototype
+from Src.Core.event_type import event_type
+from Src.Core.observe_service import observe_service
 from Src.Core.reference_checker import reference_checker
 from Src.Core.settings_processor import settings_processor
+from Src.settings_manager import settings_manager
 from Src.Logics.factory_entities import factory_entities
 from Src.Logics.prototype_osv import prototype_osv
 from Src.Logics.response_json import response_json
@@ -26,13 +30,17 @@ responses_factory = factory_entities()
 _ = reference_checker()
 _ = settings_processor()
 ref_service = reference_service()
-
+log = logger()
+# Поднимаем конфиг, чтобы передать логгеру уровень и тип вывода через события
+config = settings_manager("settings.json")
+config.load()
 
 """
 Проверить доступность REST API
 """
 @app.route("/api/accessibility", methods=['GET'])
 def formats():
+    observe_service.create_event(event_type.debug(), "Запрошена проверка доступности API")
     return "SUCCESS"
 
 
@@ -42,7 +50,15 @@ def formats():
 @app.route("/response/<string:type>", methods=['GET'])
 def get_response(type):
     if type not in responses_factory.formats:
+        observe_service.create_event(
+            event_type.error(),
+            f"Запрошен неизвестный формат ответа: {type}",
+        )
         abort(404)
+    observe_service.create_event(
+        event_type.debug(),
+        f"Генерация ответа в формате {type}",
+    )
     response = responses_factory.create(type)
     text = response().generate([data[reposity.recipes_key()][0]])
     return text
@@ -54,10 +70,22 @@ def get_response(type):
 @app.route("/response/<string:format_type>/<string:model_type>", methods=['GET'])
 def get_response_with_model(format_type, model_type):
     if format_type not in responses_factory.formats:
+        observe_service.create_event(
+            event_type.error(),
+            f"Неизвестный формат ответа: {format_type}",
+        )
         abort(404)
     if model_type not in data.keys():
+        observe_service.create_event(
+            event_type.error(),
+            f"Неизвестный тип модели: {model_type}",
+        )
         abort(404)
 
+    observe_service.create_event(
+        event_type.debug(),
+        f"Генерация данных {model_type} в формате {format_type}",
+    )
     result_format = factory_entities().create(format_type)()
     result = result_format.generate(list(data[model_type]))
     return result
@@ -68,6 +96,10 @@ def get_response_with_model(format_type, model_type):
 """
 @app.route("/response/recipes", methods=['GET'])
 def get_recipes():
+    observe_service.create_event(
+        event_type.debug(),
+        "Запрошен список всех рецептов",
+    )
     result_format = factory_entities().create("json")()
     result = result_format.generate(data[reposity.recipes_key()])
     return result
@@ -78,11 +110,23 @@ def get_recipes():
 """
 @app.route("/response/recipe/<string:id>", methods=['GET'])
 def get_recipe(id):
+    observe_service.create_event(
+        event_type.debug(),
+        f"Запрос рецепта по идентификатору {id}",
+    )
     result_format = factory_entities().create("json")()
     for recipe in data[reposity.recipes_key()]:
         if recipe.unique_code == id:
+            observe_service.create_event(
+                event_type.info(),
+                f"Рецепт {id} найден",
+            )
             result = result_format.generate([recipe])
             return result
+    observe_service.create_event(
+        event_type.error(),
+        f"Рецепт {id} не найден",
+    )
     abort(404)
 
 """
@@ -93,11 +137,19 @@ def get_report(code, start, end):
     result_format = factory_entities().create("csv")()
     res = data[reposity.storage_key()]
     storage = None
+    observe_service.create_event(
+        event_type.debug(),
+        f"Запрос отчета по складу {code} за период {start} - {end}",
+    )
     
     try:
         start_date = datetime.strptime(start,"%d-%m-%Y %H:%M:%S")
         finish_date = datetime.strptime(end,"%d-%m-%Y %H:%M:%S")
     except:
+        observe_service.create_event(
+            event_type.error(),
+            f"Неверный формат дат для отчета: {start} - {end}",
+        )
         return "Неправильный формат дат!"
     
     for item in res:
@@ -106,6 +158,10 @@ def get_report(code, start, end):
             break
             
     if storage is None:
+        observe_service.create_event(
+            event_type.error(),
+            f"Неверный код склада для отчета: {code}",
+        )
         return "Неправильный код склада!"
     
     osv = strt_service.create_osv(start_date, finish_date, storage.unique_code)
@@ -115,6 +171,10 @@ def get_report(code, start, end):
     
     # Передаем порядок полей в генератор CSV
     result = result_format.generate(osv.units, field_order)
+    observe_service.create_event(
+        event_type.info(),
+        f"Сформирован отчет по складу {code}, строк: {len(osv.units)}",
+    )
     return flask.Response(response=result, status=200, 
                content_type="text/plain;charset=utf-8")
 
@@ -124,10 +184,18 @@ def get_report(code, start, end):
 @app.route("/api/filter/<string:model_type>", methods=['POST'])
 def filter_domain(model_type):
     if data is None or model_type not in data.keys():
+        observe_service.create_event(
+            event_type.error(),
+            f"Запрошена фильтрация неизвестного типа модели: {model_type}",
+        )
         abort(404)
 
     payload = flask.request.get_json()
     if payload is None:
+        observe_service.create_event(
+            event_type.error(),
+            "Пустое тело запроса при фильтрации моделей",
+        )
         return jsonify({
             "status": "error",
             "message": "Тело запроса должно содержать JSON с параметрами фильтра."
@@ -142,6 +210,10 @@ def filter_domain(model_type):
     # Отдаём отфильтрованный результат в JSON
     result_format = factory_entities().create("json")()
     result = result_format.generate(proto.data)
+    observe_service.create_event(
+        event_type.info(),
+        f"Отфильтровано {len(proto.data)} элементов для модели {model_type}",
+    )
     return result
 
 """
@@ -152,11 +224,19 @@ def get_report_osv_filtered(code, start, end):
     result_format = factory_entities().create("csv")()
     res = data[reposity.storage_key()]
     storage = None
+    observe_service.create_event(
+        event_type.debug(),
+        f"Запрос фильтрованного отчета по складу {code} за период {start} - {end}",
+    )
 
     try:
         start_date = datetime.strptime(start, "%d-%m-%Y %H:%M:%S")
         finish_date = datetime.strptime(end, "%d-%m-%Y %H:%M:%S")
     except Exception:
+        observe_service.create_event(
+            event_type.error(),
+            f"Неверный формат дат для фильтрованного отчета: {start} - {end}",
+        )
         return "Неправильный формат дат!"
 
     for item in res:
@@ -165,6 +245,10 @@ def get_report_osv_filtered(code, start, end):
             break
 
     if storage is None:
+        observe_service.create_event(
+            event_type.error(),
+            f"Неверный код склада для фильтрованного отчета: {code}",
+        )
         return "Неправильный код склада!"
 
     osv = strt_service.create_osv(start_date, finish_date, storage.unique_code)
@@ -181,10 +265,18 @@ def get_report_osv_filtered(code, start, end):
 
         # Формируем модель ОСВ с отфильтрованными строками
         osv.units = filtered_units
+        observe_service.create_event(
+            event_type.info(),
+            f"Отчет отфильтрован ({len(filter_sort_data.filters)} фильтров), осталось строк: {len(filtered_units)}",
+        )
 
     field_order = ["name", "measure_id", "nomenclature_id",
                    "start_amount", "finish_amount", "add", "sub"]
     result = result_format.generate(osv.units, field_order)
+    observe_service.create_event(
+        event_type.info(),
+        f"Сформирован фильтрованный отчет по складу {code}, строк: {len(osv.units)}",
+    )
     return flask.Response(response=result,
                           status=200,
                           content_type="text/plain;charset=utf-8")
@@ -194,12 +286,25 @@ def get_report_osv_filtered(code, start, end):
 """
 @app.route("/dump", methods=['POST'])
 def dump():
+    filename = "settings2.json"
+    observe_service.create_event(
+        event_type.debug(),
+        f"Запрос дампа данных в файл {filename}",
+    )
     res = strt_service.dump("settings2.json")
     
     if res:
+        observe_service.create_event(
+            event_type.info(),
+            f"Дамп данных сохранен в {filename}",
+        )
         result = json.dumps({"status": "success", "message": "Info saved to file!"})
         return result
     else:
+        observe_service.create_event(
+            event_type.error(),
+            f"Ошибка при сохранении дампа в {filename}",
+        )
         result = json.dumps({"status": "error", "message": "Error with saving info!"})
         return result, 400
     
@@ -213,8 +318,16 @@ def dump():
 """
 @app.route("/api/blocking_date", methods=['POST'])
 def set_blocking_date():
+    observe_service.create_event(
+        event_type.debug(),
+        "Запрос на изменение даты блокировки",
+    )
     payload = flask.request.get_json()
     if payload is None or "blocking_date" not in payload:
+        observe_service.create_event(
+            event_type.error(),
+            "Некорректное тело запроса для blocking_date",
+        )
         return jsonify({
             "status": "error",
             "message": "Тело запроса должно содержать JSON с полем 'blocking_date'."
@@ -225,6 +338,10 @@ def set_blocking_date():
     try:
         new_date = datetime.strptime(date_str, "%d-%m-%Y %H:%M:%S")
     except ValueError:
+        observe_service.create_event(
+            event_type.error(),
+            f"Неверный формат даты блокировки: {date_str}",
+        )
         return jsonify({
             "status": "error",
             "message": "Неправильный формат даты. Используйте 'дд-мм-ГГГГ чч:мм:cc'."
@@ -232,6 +349,10 @@ def set_blocking_date():
 
     # 1. Меняем дату блокировки в сервисе (это вызовет пересчёт остатков)
     strt_service.blocking_date = new_date
+    observe_service.create_event(
+        event_type.info(),
+        f"Дата блокировки обновлена через API: {date_str}",
+    )
 
     return jsonify({
         "status": "success",
@@ -243,11 +364,20 @@ def set_blocking_date():
 """
 @app.route("/api/blocking_date", methods=['GET'])
 def get_blocking_date():
+    date_str = None
     # Сначала смотрим, не установлена ли дата блокировки в сервисе
     if strt_service.blocking_date is not None:
         date_str = strt_service.blocking_date.strftime("%d-%m-%Y %H:%M:%S")
+        observe_service.create_event(
+            event_type.debug(),
+            f"Текущая дата блокировки: {date_str}",
+        )
         return jsonify({"blocking_date": date_str}), 200
 
+    observe_service.create_event(
+        event_type.debug(),
+        "Дата блокировки не установлена",
+    )
     return jsonify({"blocking_date": date_str}), 200
 
 """
@@ -257,9 +387,17 @@ def get_blocking_date():
 """
 @app.route("/api/balance/<string:date_str>", methods=['GET'])
 def get_balance_on_date(date_str: str):
+    observe_service.create_event(
+        event_type.debug(),
+        f"Запрос остатков на дату {date_str}",
+    )
     try:
         target_date = datetime.strptime(date_str, "%d-%m-%Y %H:%M:%S")
     except ValueError:
+        observe_service.create_event(
+            event_type.error(),
+            f"Неверный формат даты для остатков: {date_str}",
+        )
         return jsonify({
             "status": "error",
             "message": "Неправильный формат даты. Используйте 'дд-мм-ГГГГ чч:мм:cc'."
@@ -280,6 +418,10 @@ def get_balance_on_date(date_str: str):
             "amount": bal.amount
         })
 
+    observe_service.create_event(
+        event_type.info(),
+        f"Найдено {len(balances)} остатков на дату {date_str}",
+    )
     return jsonify(result), 200
 
 """
@@ -289,17 +431,29 @@ GET /api/<reference_type>/<id>
 """
 @app.route("/api/<string:reference_type>/<string:id>", methods=['GET'])
 def get_reference_by_id(reference_type: str, id: str):
+    observe_service.create_event(
+        event_type.debug(),
+        f"Запрос элемента {reference_type} с ID {id}",
+    )
     # Проверка допустимого типа справочника
     allowed_types = [reposity.nomenclature_key(), reposity.measure_key(),
                      reposity.groups_key(), reposity.storage_key()]
 
     if reference_type not in allowed_types:
+        observe_service.create_event(
+            event_type.error(),
+            f"Неизвестный тип справочника: {reference_type}",
+        )
         return jsonify({
             "status": "error",
             "message": f"Неизвестный тип справочника: {reference_type}. Допустимые типы: {', '.join(allowed_types)}"
         }), 400
 
     if data is None or reference_type not in data.keys():
+        observe_service.create_event(
+            event_type.error(),
+            f"Справочник {reference_type} не загружен",
+        )
         return jsonify({
             "status": "error",
             "message": "Данные не загружены"
@@ -315,6 +469,10 @@ def get_reference_by_id(reference_type: str, id: str):
     filtered = proto.filter(proto, filter_by_id)
 
     if len(filtered.data) == 0:
+        observe_service.create_event(
+            event_type.error(),
+            f"Элемент {id} не найден в справочнике {reference_type}",
+        )
         return jsonify({
             "status": "error",
             "message": f"Элемент с ID '{id}' не найден в справочнике '{reference_type}'"
@@ -324,6 +482,10 @@ def get_reference_by_id(reference_type: str, id: str):
     item = filtered.data[0]
     result_format = factory_entities().create("json")()
     result = result_format.generate([item])
+    observe_service.create_event(
+        event_type.info(),
+        f"Элемент {id} найден в справочнике {reference_type}",
+    )
 
     return result, 200
 
@@ -346,6 +508,10 @@ def add_reference(reference_type: str):
                      reposity.groups_key(), reposity.storage_key()]
 
     if reference_type not in allowed_types:
+        observe_service.create_event(
+            event_type.error(),
+            f"Попытка добавить элемент в неизвестный справочник: {reference_type}",
+        )
         return jsonify({
             "status": "error",
             "message": f"Неизвестный тип справочника: {reference_type}. Допустимые типы: {', '.join(allowed_types)}"
@@ -353,15 +519,27 @@ def add_reference(reference_type: str):
 
     payload = flask.request.get_json()
     if payload is None:
+        observe_service.create_event(
+            event_type.error(),
+            "Пустое тело запроса при добавлении элемента справочника",
+        )
         return jsonify({
             "status": "error",
             "message": "Тело запроса должно содержать JSON с данными элемента"
         }), 400
 
     try:
+        observe_service.create_event(
+            event_type.debug(),
+            f"Добавление элемента в справочник {reference_type}",
+        )
         result = ref_service.add_reference(reference_type, payload)
 
         if result:
+            observe_service.create_event(
+                event_type.info(),
+                f"Элемент добавлен в справочник {reference_type}",
+            )
             return jsonify({
                 "status": "success",
                 "message": f"Элемент успешно добавлен в справочник '{reference_type}'",
@@ -374,6 +552,10 @@ def add_reference(reference_type: str):
             }), 400
 
     except Exception as e:
+        observe_service.create_event(
+            event_type.error(),
+            f"Ошибка при добавлении элемента в {reference_type}: {e}",
+        )
         return jsonify({
             "status": "error",
             "message": f"Ошибка при добавлении элемента: {str(e)}"
@@ -391,6 +573,10 @@ def update_reference(reference_type: str):
                      reposity.groups_key(), reposity.storage_key()]
 
     if reference_type not in allowed_types:
+        observe_service.create_event(
+            event_type.error(),
+            f"Попытка изменить элемент неизвестного справочника: {reference_type}",
+        )
         return jsonify({
             "status": "error",
             "message": f"Неизвестный тип справочника: {reference_type}. Допустимые типы: {', '.join(allowed_types)}"
@@ -398,21 +584,37 @@ def update_reference(reference_type: str):
 
     payload = flask.request.get_json()
     if payload is None:
+        observe_service.create_event(
+            event_type.error(),
+            "Пустое тело запроса при изменении элемента справочника",
+        )
         return jsonify({
             "status": "error",
             "message": "Тело запроса должно содержать JSON с данными элемента"
         }), 400
 
     if "id" not in payload:
+        observe_service.create_event(
+            event_type.error(),
+            "Не передан id при изменении элемента справочника",
+        )
         return jsonify({
             "status": "error",
             "message": "Поле 'id' обязательно для изменения элемента"
         }), 400
 
     try:
+        observe_service.create_event(
+            event_type.debug(),
+            f"Изменение элемента {payload['id']} в справочнике {reference_type}",
+        )
         result = ref_service.change_reference(reference_type, payload)
 
         if result:
+            observe_service.create_event(
+                event_type.info(),
+                f"Элемент {payload['id']} изменен в справочнике {reference_type}",
+            )
             return jsonify({
                 "status": "success",
                 "message": f"Элемент с ID '{payload['id']}' успешно изменен",
@@ -425,6 +627,10 @@ def update_reference(reference_type: str):
             }), 404
 
     except Exception as e:
+        observe_service.create_event(
+            event_type.error(),
+            f"Ошибка при изменении элемента {payload.get('id')} в {reference_type}: {e}",
+        )
         return jsonify({
             "status": "error",
             "message": f"Ошибка при изменении элемента: {str(e)}"
@@ -441,21 +647,37 @@ def delete_reference(reference_type: str, id: str):
                      reposity.groups_key(), reposity.storage_key()]
 
     if reference_type not in allowed_types:
+        observe_service.create_event(
+            event_type.error(),
+            f"Попытка удалить элемент из неизвестного справочника: {reference_type}",
+        )
         return jsonify({
             "status": "error",
             "message": f"Неизвестный тип справочника: {reference_type}. Допустимые типы: {', '.join(allowed_types)}"
         }), 400
 
     try:
+        observe_service.create_event(
+            event_type.debug(),
+            f"Удаление элемента {id} из справочника {reference_type}",
+        )
         result = ref_service.delete_reference(reference_type, id)
 
         if result:
+            observe_service.create_event(
+                event_type.info(),
+                f"Элемент {id} удален из справочника {reference_type}",
+            )
             return jsonify({
                 "status": "success",
                 "message": f"Элемент с ID '{id}' успешно удален из справочника '{reference_type}'"
             }), 200
 
     except Exception as e:
+        observe_service.create_event(
+            event_type.error(),
+            f"Ошибка при удалении элемента {id} из {reference_type}: {e}",
+        )
         return jsonify({
             "status": "error",
             "message": f"Ошибка при удалении элемента: {str(e)}"
@@ -464,20 +686,40 @@ def delete_reference(reference_type: str, id: str):
 
 @app.errorhandler(404)
 def page_not_found(error):
+    observe_service.create_event(
+        event_type.error(),
+        f"Маршрут не найден: {flask.request.path}",
+    )
     return f'Маршрут не найден.', 404
 
 
 @app.errorhandler(500)
 def internal_server_error(error):
+    observe_service.create_event(
+        event_type.error(),
+        f"Внутренняя ошибка сервера: {str(error)}",
+    )
     return f'Внутренняя ошибка сервера: {str(error)}', 500
 
 
 @app.errorhandler(405)
 def method_not_allowed(error):
+    observe_service.create_event(
+        event_type.error(),
+        f"Метод {flask.request.method} не разрешен для {flask.request.path}",
+    )
     return f'Метод не разрешен для данного маршрута. Разрешенные методы: {error.valid_methods}', 405
 
 
 if __name__ == '__main__':
+    observe_service.create_event(
+        event_type.info(),
+        "Запуск REST API сервиса",
+    )
     strt_service.start()
     data = strt_service.reposity.data
+    observe_service.create_event(
+        event_type.info(),
+        "REST API запущен на порту 8080",
+    )
     app.run(host="0.0.0.0", port=8080)
