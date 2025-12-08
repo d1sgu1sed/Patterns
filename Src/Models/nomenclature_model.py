@@ -48,7 +48,7 @@ class nomenclature_model(abstract):
     
     @full_name.setter
     def full_name(self, value: str):
-        validator.validate(value, str, 255)
+        # validator.validate(value, str, 255)
         self.__full_name = value
     
     @group.setter

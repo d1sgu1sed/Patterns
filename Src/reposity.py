@@ -56,6 +56,10 @@ class reposity:
     @staticmethod
     def transaction_key():
         return "transaction"
+    
+    @staticmethod
+    def balance_key():
+        return "balance"
 
     """
     Инициализация

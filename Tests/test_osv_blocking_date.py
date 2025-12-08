@@ -9,7 +9,7 @@ from Src.Models.osv_model import osv_model
 from Src.Models.transaction_model import transaction_model
 
 # Путь к settings.json – поменяй на свой, если нужно
-SETTINGS_PATH = '/home/ivan/Рабочий стол/Patterns/settings.json'
+SETTINGS_PATH = '/home/ivan/Desktop/Patterns/settings.json'
 
 
 def prepare_service_with_settings() -> start_service:
