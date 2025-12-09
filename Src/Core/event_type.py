@@ -46,6 +46,41 @@ class event_type:
         return "change_reference"
 
     """
+    Событие - возникла ошибка
+    """
+    @staticmethod
+    def error() -> str:
+        return "ERROR"
+
+    """
+    Событие - предупреждение
+    """
+    @staticmethod
+    def debug() -> str:
+        return "DEBUG"
+
+    """
+    Событие - информация
+    """
+    @staticmethod
+    def info() -> str:
+        return "INFO"
+
+    """
+    Событие - тип вывода логов
+    """
+    @staticmethod
+    def set_logs_output() -> str:
+        return "Setted logs output to"
+
+    """
+    Событие - тип вывода логов
+    """
+    @staticmethod
+    def set_log_level() -> str:
+        return "Setted log level to"
+
+    """
     Получить список всех событий
     """
     @staticmethod

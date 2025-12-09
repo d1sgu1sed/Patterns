@@ -50,6 +50,10 @@ class start_service:
             return
         self.__reposity.initalize()
         self.__start_service_initialized = True
+        observe_service.create_event(
+            event_type.info(),
+            "Сервис загрузки стартовых данных инициализирован",
+        )
 
     """
     Реализация Singleton
@@ -82,7 +86,15 @@ class start_service:
         full_filename = os.path.abspath(value)        
         if os.path.exists(full_filename):
             self.__filename = full_filename.strip()
+            observe_service.create_event(
+                event_type.info(),
+                f"Файл настроек установлен: {self.__filename}",
+            )
         else:
+            observe_service.create_event(
+                event_type.error(),
+                f"Не найден файл настроек {full_filename}",
+            )
             raise argument_exception(f'Не найден файл настроек {full_filename}')
     
     @property
@@ -97,6 +109,10 @@ class start_service:
     def blocking_date(self, value: datetime):
         validator.validate(value, datetime)
         self.__blocking_date = value
+        observe_service.create_event(
+            event_type.debug(),
+            f"Установлена дата блокировки {self.__blocking_date}",
+        )
         # После изменения даты блокировки пересчитываем остатки
         self.create_stocks()
         observe_service.create_event(event_type.change_block_period(),{"block_period":self.__blocking_date})
@@ -106,8 +122,16 @@ class start_service:
     по всем складам и транзакциям.
     """
     def create_stocks(self):
+        observe_service.create_event(
+            event_type.debug(),
+            "Пересчет остатков по дате блокировки",
+        )
         if self.__blocking_date is None:
             self.__balance_history = []
+            observe_service.create_event(
+                event_type.debug(),
+                "Дата блокировки не задана, история остатков очищена",
+            )
             return
 
         data = self.__reposity.data
@@ -116,6 +140,10 @@ class start_service:
 
         if not transactions or not storages:
             self.__balance_history = []
+            observe_service.create_event(
+                event_type.debug(),
+                "Недостаточно данных (транзакции или склады) для пересчета остатков",
+            )
             return
 
         proto_all = prototype_osv(transactions)
@@ -167,6 +195,10 @@ class start_service:
             balances.extend(balances_by_nom.values())
 
         self.__balance_history = balances
+        observe_service.create_event(
+            event_type.info(),
+            f"Рассчитано остатков: {len(self.__balance_history)}",
+        )
 
 
     
@@ -177,12 +209,21 @@ class start_service:
         if self.__filename == "":
             raise operation_exception("Не найден файл настроек!")
 
+        observe_service.create_event(
+            event_type.debug(),
+            f"Чтение файла настроек {self.__filename}",
+        )
+
         try:
             with open(self.__filename, 'r') as file_instance:
                 settings = json.load(file_instance)
 
                 first_start = settings.get("first_start", False)
                 if not first_start:
+                    observe_service.create_event(
+                        event_type.info(),
+                        "Повторный запуск - данные уже были загружены ранее",
+                    )
                     return True
                 if "default_receipt" in settings.keys():
                     data = settings["default_receipt"]
@@ -190,12 +231,28 @@ class start_service:
                         self.__convert_storages(settings) and\
                         self.__convert_transactions(settings)
                         ):
+                        observe_service.create_event(
+                            event_type.error(),
+                            "Не удалось преобразовать данные из файла настроек",
+                        )
                         return False
+                    observe_service.create_event(
+                        event_type.info(),
+                        "Стартовые данные успешно загружены",
+                    )
                     return True
 
+            observe_service.create_event(
+                event_type.error(),
+                f"В файле {self.__filename} отсутствует блок default_receipt",
+            )
             return False
         except Exception as e:
             error_message = str(e)
+            observe_service.create_event(
+                event_type.error(),
+                f"Ошибка чтения файла настроек {self.__filename}: {error_message}",
+            )
             return False
     
     # Загрузить единицы измерений   
@@ -203,8 +260,16 @@ class start_service:
         validator.validate(data, dict)
         ranges = data.get('measures', [])
         if len(ranges) == 0:
+            observe_service.create_event(
+                event_type.debug(),
+                "В конфиге отсутствуют единицы измерения для загрузки",
+            )
             return False
          
+        observe_service.create_event(
+            event_type.debug(),
+            f"Загрузка {len(ranges)} единиц измерения",
+        )
         for range in ranges:
             dto = measure_dto().create(range)
             item = measure_model.from_dto(dto, self.__cache)
@@ -217,8 +282,16 @@ class start_service:
         validator.validate(data, dict)
         nomenclature_groups = data.get('nomenclature_groups', [])
         if len(nomenclature_groups) == 0:
+            observe_service.create_event(
+                event_type.debug(),
+                "В конфиге отсутствуют группы номенклатуры",
+            )
             return False
 
+        observe_service.create_event(
+            event_type.debug(),
+            f"Загрузка {len(nomenclature_groups)} групп номенклатуры",
+        )
         for groups in nomenclature_groups:
             dto = nomenclature_group_dto().create(groups)    
             item = nomenclature_group_model.from_dto(dto, self.__cache)
@@ -231,8 +304,16 @@ class start_service:
         validator.validate(data, dict)
         nomenclatures = data.get('nomenclatures', [])
         if len(nomenclatures) == 0:
+            observe_service.create_event(
+                event_type.debug(),
+                "В конфиге отсутствует номенклатура",
+            )
             return False
          
+        observe_service.create_event(
+            event_type.debug(),
+            f"Загрузка {len(nomenclatures)} элементов номенклатуры",
+        )
         for nomenclature in nomenclatures:
             dto = nomenclature_dto().create(nomenclature)
             item = nomenclature_model.from_dto(dto, self.__cache)
@@ -245,8 +326,16 @@ class start_service:
         validator.validate(data, dict)
         ingredients = data.get('ingredients', [])
         if len(ingredients) == 0:
+            observe_service.create_event(
+                event_type.debug(),
+                "В конфиге отсутствуют ингредиенты",
+            )
             return False
          
+        observe_service.create_event(
+            event_type.debug(),
+            f"Загрузка {len(ingredients)} ингредиентов",
+        )
         for ingredient in ingredients:
             dto = ingredient_dto().create(ingredient)
             item = ingredient_model.from_dto(dto, self.__cache)
@@ -259,7 +348,15 @@ class start_service:
         validator.validate(data, dict)
         storages = data.get("storages", None)
         if storages is None or len(storages) == 0:
+            observe_service.create_event(
+                event_type.debug(),
+                "В конфиге отсутствуют склады",
+            )
             return False
+        observe_service.create_event(
+            event_type.debug(),
+            f"Загрузка {len(storages)} складов",
+        )
         for storage in storages:
             dto = storage_dto().create(storage)
             item = storage_model.from_dto(dto, self.__cache)
@@ -272,7 +369,15 @@ class start_service:
         validator.validate(data, dict)      
         transactions = data.get("transactions", None) 
         if transactions is None or len(transactions) == 0:
+            observe_service.create_event(
+                event_type.debug(),
+                "В конфиге отсутствуют транзакции",
+            )
             return False
+        observe_service.create_event(
+            event_type.debug(),
+            f"Загрузка {len(transactions)} транзакций",
+        )
         for transaction in transactions:
             dto = transaction_dto().create(transaction)
             item = transaction_model.from_dto(dto, self.__cache)
@@ -311,12 +416,20 @@ class start_service:
         self.__default_recipe = recipe_model.create(name, validated_steps, ingredients, remark)
         # Сохраняем рецепт
         self.__reposity.data[reposity.recipes_key()].append(self.__default_recipe)
+        observe_service.create_event(
+            event_type.info(),
+            f"Создан базовый рецепт {self.__default_recipe.name}",
+        )
         return True
     
     """
     Создание ОСВ
     """
     def create_osv(self, start: datetime, end: datetime, storage_id: str):
+        observe_service.create_event(
+            event_type.debug(),
+            f"Формирование ОСВ для склада {storage_id} за период {start} - {end}",
+        )
         data = self.__reposity.data
         transactions = data[reposity.transaction_key()]
         nomenclatures = data[reposity.nomenclature_key()]
@@ -329,6 +442,10 @@ class start_service:
             blocking_date=self.__blocking_date,
             balance_history=self.__balance_history,
         )
+        observe_service.create_event(
+            event_type.info(),
+            f"ОСВ сформирована для склада {storage.unique_code}, строк: {len(osv.units)}",
+        )
         return osv
 
     
@@ -337,6 +454,10 @@ class start_service:
     """
     def dump(self, filename: str) -> bool:
         validator.validate(filename, str)
+        observe_service.create_event(
+            event_type.debug(),
+            f"Экспорт данных в файл {filename}",
+        )
         try:
             data = {}
             converter = convert_factory()
@@ -353,9 +474,17 @@ class start_service:
 
             with open(filename, 'w', encoding="UTF-8") as file_instance:
                 json.dump(data, file_instance, ensure_ascii=False, indent=4)
+            observe_service.create_event(
+                event_type.info(),
+                f"Дамп данных успешно сохранен в {filename}",
+            )
             return True
         except Exception as e:
             error_message = str(e)
+            observe_service.create_event(
+                event_type.error(),
+                f"Ошибка при сохранении дампа {filename}: {error_message}",
+            )
             return False
 
     """
@@ -365,11 +494,19 @@ class start_service:
         validator.validate(key, str)
         # Если уже есть в кэше — не добавляем второй раз
         if dto.id in self.__cache:
+            observe_service.create_event(
+                event_type.debug(),
+                f"Объект с id {dto.id} уже был загружен, пропуск",
+            )
             return
 
         item.unique_code = dto.id
         self.__cache[dto.id] = item
         self.__reposity.data[key].append(item)
+        observe_service.create_event(
+            event_type.debug(),
+            f"Объект {dto.id} сохранен в {key}",
+        )
 
         
     """
@@ -427,6 +564,18 @@ class start_service:
 
     def start(self):
         self.__filename = "settings.json"
+        observe_service.create_event(
+            event_type.debug(),
+            f"Запуск сервисов с файлом настроек {self.__filename}",
+        )
         result = self.load()
         if not result:
+            observe_service.create_event(
+                event_type.error(),
+                "Невозможно сформировать стартовый набор данных",
+            )
             raise operation_exception("Невозможно сформировать стартовый набор данных!")
+        observe_service.create_event(
+            event_type.info(),
+            "Стартовый набор данных сформирован",
+        )
